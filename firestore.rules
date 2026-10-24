@@ -13,6 +13,15 @@ service cloud.firestore {
       allow get: if signedIn() && verified() && (isAdmin() || mail() == email);
       allow list, write: if isAdmin();
     }
+    // Solicitudes de acceso: cada persona crea la suya (pendiente); solo los administradores la aceptan o rechazan
+    match /requests/{email} {
+      allow get: if signedIn() && verified() && (isAdmin() || mail() == email);
+      allow create: if signedIn() && verified() && mail() == email
+        && request.resource.data.status == 'pendiente'
+        && request.resource.data.uid == request.auth.uid
+        && request.resource.data.keys().hasOnly(['email', 'name', 'uid', 'status', 'at']);
+      allow list, update, delete: if isAdmin();
+    }
     // Espacio privado de cada usuario
     match /data/users/{uid}/{document=**} {
       allow read, write: if allowed() && request.auth.uid == uid;

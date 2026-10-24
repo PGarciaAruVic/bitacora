@@ -241,6 +241,7 @@ body.noai .ai-sec, body.noai [data-act="brief"], body.noai [data-act="brief2"], 
 body.noai [data-act="genReceta"], body.noai #foodQ, body.noai label[for="platoIn"], body.noai [data-act="aiSalud"], body.noai [data-act="askInv"],
 body.noai [data-v="asistente"], body.noai #recOut { display:none !important }
 body:not(.isadmin) .admin-only{display:none!important}
+.reqpill{position:fixed;z-index:80;top:max(12px,env(safe-area-inset-top,0px));left:50%;transform:translateX(-50%);background:var(--accent);color:var(--accent-ink);border:0;border-radius:999px;padding:10px 16px;font:inherit;font-weight:600;box-shadow:var(--shadow);cursor:pointer}
 .acl-row{display:flex;align-items:center;justify-content:space-between;gap:8px;padding:8px 0;border-bottom:1px solid var(--line);word-break:break-all}
 /* reset base (en el artefacto lo ponía el contenedor) */
 html,body{margin:0} :root{padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)} img{max-width:100%} [hidden]{display:none!important}
@@ -288,7 +289,7 @@ window.NOAI = true;
       window.bpgSignOut = () => auth.signOut().then(() => location.reload());
       let mode = "entrar", srv = null;
       const checkSrv = async () => {
-        const put = t => { const d = document.getElementById("diag"); if(d) d.textContent = "Versión 6 · " + t; };
+        const put = t => { const d = document.getElementById("diag"); if(d) d.textContent = "Versión 7 · " + t; };
         if(srv) return put(srv);
         try{
           const r = await fetch("https://identitytoolkit.googleapis.com/v1/accounts:createAuthUri?key=" + encodeURIComponent(cfg.apiKey), {method:"POST", headers:{"Content-Type":"application/json"}, body: JSON.stringify({identifier:"comprobacion@example.com", continueUri: location.origin + "/"})});
@@ -311,7 +312,7 @@ window.NOAI = true;
           </form>
           ${mode==="entrar"?'<button class="btn ghost" id="auReset" type="button">¿Has olvidado la contraseña?</button>':""}
           <div class="or">o</div><button class="btn" id="auGoogle" type="button">Continuar con Google</button></div>
-          <p class="note" style="margin:0">App privada: solo pueden entrar los correos autorizados por el administrador. Cada persona tiene su propio espacio y nadie más ve sus datos.</p><p class="note" id="diag" style="margin:0;font-size:12px">Versión 6 · comprobando conexión con el servidor…</p></div>`);
+          <p class="note" style="margin:0">App privada: al registrarte, el administrador recibe tu solicitud y te da acceso. Cada persona tiene su propio espacio y nadie más ve sus datos.</p><p class="note" id="diag" style="margin:0;font-size:12px">Versión 7 · comprobando conexión con el servidor…</p></div>`);
         checkSrv();
         o.querySelectorAll("[data-m]").forEach(b => b.onclick = () => { mode = b.dataset.m; draw(); });
         o.querySelector("#authF").onsubmit = async e => { e.preventDefault();
@@ -341,6 +342,7 @@ window.NOAI = true;
             if(["auth/popup-blocked","auth/operation-not-supported-in-this-environment","auth/web-storage-unsupported"].includes(err && err.code)){ try{ await auth.signInWithRedirect(prov); return; }catch(e2){ return draw(msg(e2)); } }
             draw(msg(err)); } };
       };
+      const NTFY_TOPIC = "bitacora-pg-76ae66d5360b4714";
       const ADMINS = ["pgarcia@arumani.es", "pablogarciaalvaro.im@gmail.com"];
       const mailOf = u => String(u.email || "").toLowerCase();
       const box = (title, body, btns) => overlay(`<div class="authbox"><div class="authlogo">${LOGO}Bitácora PG</div><div class="card"><h2>${title}</h2><p class="note" style="font-size:14px">${body}</p><div class="err" role="alert" id="gErr"></div>${btns}<button class="btn ghost" id="gOut" type="button">Salir y entrar con otra cuenta</button></div></div>`);
@@ -358,30 +360,65 @@ window.NOAI = true;
         const mail = mailOf(u), admin = ADMINS.includes(mail);
         let ok = admin;
         if(!ok){ try{ ok = (await fdb.collection("acl").doc(mail).get()).exists; }catch(_){ ok = false; } }
-        if(!ok){
-          const o = box("Sin acceso", `La cuenta <b>${esc(u.email||"")}</b> no está autorizada. Pide al administrador que añada tu correo y vuelve a intentarlo.`, '<button class="btn pri" id="gOk" type="button">Reintentar</button>');
-          bindOut(o); o.querySelector("#gOk").onclick = () => gate(u); return;
-        }
-        if(admin) document.body.classList.add("isadmin");
+        if(!ok) return waitApproval(u, mail);
+        if(admin){ document.body.classList.add("isadmin"); watchRequests(); }
         hide(); if(!gated){ gated = true; res({u, fdb}); }
+      };
+      const NTFY = "https://ntfy.sh/" + NTFY_TOPIC;
+      const notify = (title, text) => fetch(NTFY, {method:"POST", body:text, headers:{"Title":title, "Tags":"bell", "Click": location.origin + "/bitacora/app/"}}).catch(() => {});
+      let unsubWait = [];
+      const waitApproval = async (u, mail) => {
+        const reqRef = fdb.collection("requests").doc(mail);
+        let st = null;
+        try{ const d = await reqRef.get(); st = d.exists ? d.data().status : null; }catch(_){}
+        if(!st){
+          try{ await reqRef.set({email:mail, name:u.displayName || "", uid:u.uid, status:"pendiente", at:firebase.firestore.FieldValue.serverTimestamp()});
+            st = "pendiente"; notify("Nueva solicitud de acceso", `${u.displayName ? u.displayName + " · " : ""}${mail} quiere entrar en Bitácora PG. Ábrela para aceptar o rechazar.`); }
+          catch(e){ const o = box("No se pudo enviar la solicitud", esc(msg(e)), '<button class="btn pri" id="gOk" type="button">Reintentar</button>'); bindOut(o); o.querySelector("#gOk").onclick = () => gate(u); return; }
+        }
+        const show = status => {
+          const o = status === "rechazada"
+            ? box("Solicitud rechazada", `El administrador no ha aprobado el acceso de <b>${esc(mail)}</b>.`, "")
+            : box("Solicitud enviada", `Hemos avisado al administrador. En cuanto acepte a <b>${esc(mail)}</b> entrarás automáticamente; puedes dejar esta pantalla abierta o volver más tarde.`, '<button class="btn" id="gOk" type="button">Comprobar ahora</button>');
+          bindOut(o); const b = o.querySelector("#gOk"); if(b) b.onclick = () => gate(u);
+        };
+        show(st);
+        unsubWait.forEach(f => f()); unsubWait = [];
+        unsubWait.push(fdb.collection("acl").doc(mail).onSnapshot(d => { if(d.exists){ unsubWait.forEach(f => f()); unsubWait = []; gate(u); } }, () => {}));
+        unsubWait.push(reqRef.onSnapshot(d => { if(d.exists) show(d.data().status); }, () => {}));
+      };
+      const watchRequests = () => {
+        fdb.collection("requests").where("status", "==", "pendiente").onSnapshot(q => {
+          let p = document.getElementById("reqPill");
+          if(!q.size){ if(p) p.remove(); return; }
+          if(!p){ p = document.createElement("button"); p.id = "reqPill"; p.className = "reqpill"; p.type = "button"; p.onclick = () => window.bpgAcl(); document.body.appendChild(p); }
+          p.textContent = q.size === 1 ? "1 solicitud de acceso" : `${q.size} solicitudes de acceso`;
+        }, () => {});
       };
       window.bpgAcl = async () => {
         if(!document.body.classList.contains("isadmin")) return;
         const me = mailOf(auth.currentUser);
         const render = async (err="") => {
-          let rows = [];
+          let rows = [], reqs = [];
           try{ rows = (await fdb.collection("acl").get()).docs.map(d => d.id).sort(); }catch(e){ err = err || msg(e); }
+          try{ reqs = (await fdb.collection("requests").where("status", "==", "pendiente").get()).docs.map(d => d.data()); }catch(e){ err = err || msg(e); }
           const o = overlay(`<div class="authbox"><div class="authlogo">${LOGO}Gestionar acceso</div><div class="card">
             <p class="note" style="font-size:14px;margin:0">Solo estos correos pueden entrar. Administradores (siempre): ${ADMINS.map(esc).join(", ")}.</p>
+            ${reqs.length ? `<h3 style="margin:0">Solicitudes pendientes</h3>${reqs.map(r => `<div class="acl-row"><span>${r.name ? esc(r.name) + "<br>" : ""}<small>${esc(r.email)}</small></span><span style="display:flex;gap:6px"><button class="btn pri" data-ok="${esc(r.email)}" type="button">Aceptar</button><button class="btn ghost" data-no="${esc(r.email)}" type="button">Rechazar</button></span></div>`).join("")}` : ""}
+            <h3 style="margin:0">Correos autorizados</h3>
             <form id="aclF" style="display:flex;gap:8px"><input class="inp" id="aclIn" type="email" placeholder="correo@ejemplo.com" autocomplete="off" required><button class="btn pri" type="submit">Añadir</button></form>
             <div class="err" role="alert">${esc(err)}</div>
             <div>${rows.length ? rows.map(m => `<div class="acl-row"><span>${esc(m)}</span><button class="btn ghost" data-del="${esc(m)}" type="button">Quitar</button></div>`).join("") : '<p class="note">Aún no has autorizado a nadie más.</p>'}</div>
+            <details class="note" style="font-size:13px"><summary>Avisos en el móvil</summary>Instala la app gratuita <b>ntfy</b> (App Store o Google Play), pulsa «+» y suscríbete al tema <code style="user-select:all">${NTFY_TOPIC}</code>. Cada vez que alguien se registre te llegará una notificación.</details>
             <button class="btn" id="aclX" type="button">Cerrar</button></div></div>`);
+          o.querySelectorAll("[data-ok]").forEach(b => b.onclick = async () => { const m = b.dataset.ok;
+            try{ await fdb.collection("acl").doc(m).set({email:m, addedBy:me, addedAt:firebase.firestore.FieldValue.serverTimestamp()}); await fdb.collection("requests").doc(m).update({status:"aceptada"}); render(); }catch(e2){ render(msg(e2)); } });
+          o.querySelectorAll("[data-no]").forEach(b => b.onclick = async () => { try{ await fdb.collection("requests").doc(b.dataset.no).update({status:"rechazada"}); render(); }catch(e2){ render(msg(e2)); } });
           o.querySelector("#aclX").onclick = hide;
           o.querySelector("#aclF").onsubmit = async e => { e.preventDefault(); const m = o.querySelector("#aclIn").value.trim().toLowerCase();
             if(!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(m)) return render("Escribe un correo válido.");
             try{ await fdb.collection("acl").doc(m).set({email:m, addedBy:me, addedAt:firebase.firestore.FieldValue.serverTimestamp()}); render(); }catch(e2){ render(msg(e2)); } };
-          o.querySelectorAll("[data-del]").forEach(b => b.onclick = async () => { try{ await fdb.collection("acl").doc(b.dataset.del).delete(); render(); }catch(e2){ render(msg(e2)); } });
+          o.querySelectorAll("[data-del]").forEach(b => b.onclick = async () => { try{ await fdb.collection("acl").doc(b.dataset.del).delete(); try{ await fdb.collection("requests").doc(b.dataset.del).delete(); }catch(_){} render(); }catch(e2){ render(msg(e2)); } });
         };
         render();
       };

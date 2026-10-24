@@ -39,7 +39,8 @@ App personal instalable (PWA): entreno según objetivo, nutrición y recetas, sa
 
 ## Acceso privado
 - Administradores fijos (en `firestore.rules` y en la app): `pgarcia@arumani.es`, `pablogarciaalvaro.im@gmail.com`.
-- Para invitar a alguien: en la app, **Perfil → Gestionar acceso → Añadir** su correo. Para quitarle el acceso, «Quitar».
+- Registro con aprobación: quien se registra queda como **solicitud pendiente**; el administrador recibe un aviso (app ntfy, tema `bitacora-pg-76ae66d5360b4714`) y la acepta o rechaza en **Perfil → Gestionar acceso** (o en el aviso flotante «solicitudes de acceso»). Al aceptarla, la persona entra sola.
+- También se puede autorizar un correo directamente con «Añadir», y retirar el acceso con «Quitar».
 - La persona entra con ese correo: con Google, o con contraseña (tendrá que verificar el correo).
 - Lo impone la base de datos (reglas de Firestore), no solo la app: una cuenta no autorizada no puede leer ni escribir nada.
 - Las páginas están marcadas para que los buscadores no las indexen (`noindex`, `robots.txt`).
