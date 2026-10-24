@@ -286,7 +286,17 @@ window.NOAI = true;
       try{ auth.useDeviceLanguage(); }catch(_){}
       auth.getRedirectResult().catch(e => { window.__authErr = e; });
       window.bpgSignOut = () => auth.signOut().then(() => location.reload());
-      let mode = "entrar";
+      let mode = "entrar", srv = null;
+      const checkSrv = async () => {
+        const put = t => { const d = document.getElementById("diag"); if(d) d.textContent = "Versión 6 · " + t; };
+        if(srv) return put(srv);
+        try{
+          const r = await fetch("https://identitytoolkit.googleapis.com/v1/accounts:createAuthUri?key=" + encodeURIComponent(cfg.apiKey), {method:"POST", headers:{"Content-Type":"application/json"}, body: JSON.stringify({identifier:"comprobacion@example.com", continueUri: location.origin + "/"})});
+          const j = await r.json().catch(() => ({}));
+          srv = r.ok ? "conexión con el servidor: correcta" : "el servidor rechaza la conexión (" + ((j.error && j.error.message) || r.status) + ")";
+        }catch(e){ srv = "sin conexión con el servidor de acceso (bloqueado por la red, un bloqueador o el navegador)"; }
+        put(srv);
+      };
       const msg = e => ({"auth/invalid-credential":"Correo o contraseña incorrectos.","bpg/wrong-pass":"Esa cuenta ya existe y la contraseña no coincide. Pulsa «¿Has olvidado la contraseña?» para cambiarla.","auth/wrong-password":"Correo o contraseña incorrectos.","auth/user-not-found":"No existe una cuenta con ese correo.","auth/email-already-in-use":"Ya existe una cuenta con ese correo: entra en «Entrar».","auth/weak-password":"La contraseña debe tener al menos 6 caracteres.","auth/invalid-email":"El correo no es válido.","auth/too-many-requests":"Demasiados intentos. Espera unos minutos.","auth/network-request-failed":"Sin conexión. Revisa internet e inténtalo de nuevo.","auth/popup-closed-by-user":"Has cerrado la ventana de Google antes de terminar.","auth/cancelled-popup-request":"Ya hay una ventana de Google abierta.","auth/popup-blocked":"El navegador bloqueó la ventana de Google: permite ventanas emergentes para esta página.","auth/operation-not-allowed":"Este método de acceso no está activado en Firebase (Authentication → Sign-in method).","auth/unauthorized-domain":"Este dominio no está autorizado en Firebase (Authentication → Settings → Authorized domains)."}[e && e.code] || (e && e.message) || "No se pudo completar. Inténtalo de nuevo.") + (e && e.code && !String(e.code).startsWith("bpg/") ? ` [${e.code}]` : "");
       const draw = (err="", info="") => {
         const o = overlay(`<div class="authbox"><div class="authlogo">${LOGO}Bitácora PG</div>
@@ -301,7 +311,8 @@ window.NOAI = true;
           </form>
           ${mode==="entrar"?'<button class="btn ghost" id="auReset" type="button">¿Has olvidado la contraseña?</button>':""}
           <div class="or">o</div><button class="btn" id="auGoogle" type="button">Continuar con Google</button></div>
-          <p class="note" style="margin:0">App privada: solo pueden entrar los correos autorizados por el administrador. Cada persona tiene su propio espacio y nadie más ve sus datos.</p></div>`);
+          <p class="note" style="margin:0">App privada: solo pueden entrar los correos autorizados por el administrador. Cada persona tiene su propio espacio y nadie más ve sus datos.</p><p class="note" id="diag" style="margin:0;font-size:12px">Versión 6 · comprobando conexión con el servidor…</p></div>`);
+        checkSrv();
         o.querySelectorAll("[data-m]").forEach(b => b.onclick = () => { mode = b.dataset.m; draw(); });
         o.querySelector("#authF").onsubmit = async e => { e.preventDefault();
           const mail = o.querySelector("#auMail").value.trim(), pass = o.querySelector("#auPass").value;
