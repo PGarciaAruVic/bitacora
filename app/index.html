@@ -287,7 +287,7 @@ window.NOAI = true;
       auth.getRedirectResult().catch(e => { window.__authErr = e; });
       window.bpgSignOut = () => auth.signOut().then(() => location.reload());
       let mode = "entrar";
-      const msg = e => ({"auth/invalid-credential":"Correo o contraseña incorrectos.","auth/wrong-password":"Correo o contraseña incorrectos.","auth/user-not-found":"No existe una cuenta con ese correo.","auth/email-already-in-use":"Ya existe una cuenta con ese correo: entra en «Entrar».","auth/weak-password":"La contraseña debe tener al menos 6 caracteres.","auth/invalid-email":"El correo no es válido.","auth/too-many-requests":"Demasiados intentos. Espera unos minutos.","auth/network-request-failed":"Sin conexión. Revisa internet e inténtalo de nuevo.","auth/popup-closed-by-user":"Has cerrado la ventana de Google antes de terminar.","auth/operation-not-allowed":"Este método de acceso no está activado en Firebase (Authentication → Sign-in method).","auth/unauthorized-domain":"Este dominio no está autorizado en Firebase (Authentication → Settings → Authorized domains)."}[e && e.code] || (e && e.message) || "No se pudo completar. Inténtalo de nuevo.");
+      const msg = e => ({"auth/invalid-credential":"Correo o contraseña incorrectos.","auth/wrong-password":"Correo o contraseña incorrectos.","auth/user-not-found":"No existe una cuenta con ese correo.","auth/email-already-in-use":"Ya existe una cuenta con ese correo: entra en «Entrar».","auth/weak-password":"La contraseña debe tener al menos 6 caracteres.","auth/invalid-email":"El correo no es válido.","auth/too-many-requests":"Demasiados intentos. Espera unos minutos.","auth/network-request-failed":"Sin conexión. Revisa internet e inténtalo de nuevo.","auth/popup-closed-by-user":"Has cerrado la ventana de Google antes de terminar.","auth/cancelled-popup-request":"Ya hay una ventana de Google abierta.","auth/popup-blocked":"El navegador bloqueó la ventana de Google: permite ventanas emergentes para esta página.","auth/operation-not-allowed":"Este método de acceso no está activado en Firebase (Authentication → Sign-in method).","auth/unauthorized-domain":"Este dominio no está autorizado en Firebase (Authentication → Settings → Authorized domains)."}[e && e.code] || (e && e.message) || "No se pudo completar. Inténtalo de nuevo.");
       const draw = (err="", info="") => {
         const o = overlay(`<div class="authbox"><div class="authlogo">${LOGO}Bitácora PG</div>
           <p class="note" style="font-size:15px;margin:0">Tu día entero en un solo sitio: entreno, nutrición, salud, diario, dinero y calma. Tus datos son privados.</p>
@@ -306,15 +306,21 @@ window.NOAI = true;
         o.querySelector("#authF").onsubmit = async e => { e.preventDefault();
           const mail = o.querySelector("#auMail").value.trim(), pass = o.querySelector("#auPass").value;
           if(!mail || pass.length < 6) return draw(!mail ? "Escribe tu correo." : "La contraseña debe tener al menos 6 caracteres.");
-          const btn = o.querySelector('button[type="submit"]'); btn.disabled = true; btn.textContent = "Un momento…";
+          const btn = o.querySelector('button[type="submit"]'); btn.disabled = true; btn.textContent = "Un momento…"; const dog2 = setTimeout(() => draw("Sin respuesta del servidor. Revisa tu conexión e inténtalo de nuevo."), 30000);
           try{
             if(mode==="crear"){ const name = (o.querySelector("#auName").value||"").trim(); const r = await auth.createUserWithEmailAndPassword(mail, pass); if(name) await r.user.updateProfile({displayName:name}); try{ await r.user.sendEmailVerification(); }catch(_){} }
             else await auth.signInWithEmailAndPassword(mail, pass);
-          }catch(err){ draw(msg(err)); }
+            clearTimeout(dog2);
+          }catch(err){ clearTimeout(dog2); draw(msg(err)); }
         };
         const rs = o.querySelector("#auReset"); if(rs) rs.onclick = async () => { const mail = o.querySelector("#auMail").value.trim(); if(!mail) return draw("Escribe tu correo y vuelve a pulsar «¿Has olvidado la contraseña?»."); try{ await auth.sendPasswordResetEmail(mail); draw("", "Te hemos enviado un correo para restablecer la contraseña."); }catch(err){ draw(msg(err)); } };
-        o.querySelector("#auGoogle").onclick = async () => { const prov = new firebase.auth.GoogleAuthProvider(); const standalone = matchMedia("(display-mode: standalone)").matches || navigator.standalone;
-          try{ if(standalone || /iphone|ipad|android/i.test(navigator.userAgent)) await auth.signInWithRedirect(prov); else await auth.signInWithPopup(prov); }catch(err){ draw(msg(err)); } };
+        o.querySelector("#auGoogle").onclick = async e => { const prov = new firebase.auth.GoogleAuthProvider(); prov.setCustomParameters({prompt:"select_account"});
+          const b = e.currentTarget; b.disabled = true; b.textContent = "Abriendo Google…";
+          const dog = setTimeout(() => draw("Google no respondió. Prueba otra vez o entra con correo y contraseña."), 90000);
+          try{ await auth.signInWithPopup(prov); clearTimeout(dog); }
+          catch(err){ clearTimeout(dog);
+            if(["auth/popup-blocked","auth/operation-not-supported-in-this-environment","auth/web-storage-unsupported"].includes(err && err.code)){ try{ await auth.signInWithRedirect(prov); return; }catch(e2){ return draw(msg(e2)); } }
+            draw(msg(err)); } };
       };
       const ADMINS = ["pgarcia@arumani.es", "pablogarciaalvaro.im@gmail.com"];
       const mailOf = u => String(u.email || "").toLowerCase();
