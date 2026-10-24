@@ -1,0 +1,13 @@
+rules_version = '2';
+// Bitácora PG: cada usuario solo puede leer y escribir su propio espacio.
+service cloud.firestore {
+  match /databases/{database}/documents {
+    match /data/users/{uid}/{document=**} {
+      allow read, write: if request.auth != null && request.auth.uid == uid;
+    }
+    // Todo lo demás, cerrado.
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}

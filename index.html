@@ -1,0 +1,241 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>Bitácora PG · Tu día entero en un solo sitio</title>
+<meta name="description" content="App personal gratuita para entreno, nutrición, salud, diario, finanzas y calma. Se instala en el móvil y funciona sin conexión.">
+<meta name="theme-color" content="#2f6b4f">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" href="icons/favicon.svg" type="image/svg+xml">
+<link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
+<meta property="og:title" content="Bitácora PG">
+<meta property="og:description" content="Tu día entero en un solo sitio: entreno, nutrición, salud, diario, dinero y calma.">
+<meta property="og:image" content="https://pgarciaaruvic.github.io/bitacora/icons/icon-512.png">
+<style>html,body{margin:0} [hidden]{display:none!important} img{max-width:100%}</style>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,600;9..144,700&family=Manrope:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap">
+<style>
+/* Layout: editorial product page — hero with the phone as the one bold element, then a quiet features grid, install steps with platform tabs, privacy and FAQ */
+:root{
+  --paper:#eef1ec; --sheet:#fbfcfa; --ink:#18221b; --muted:#56655a; --line:#d5ddd5; --soft:#e3e9e2;
+  --accent:#2f6b4f; --accent-ink:#ffffff; --hi:#b5791f; --deep:#13241b; --deep-ink:#eaf2ec;
+  --f-display:"Fraunces",Georgia,"Times New Roman",serif;
+  --f-body:"Manrope",system-ui,-apple-system,"Segoe UI",sans-serif;
+  --f-mono:"JetBrains Mono",ui-monospace,Menlo,monospace;
+  --r:16px;
+}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){
+  --paper:#0f1511; --sheet:#161e19; --ink:#e3ebe5; --muted:#9aab9f; --line:#26332b; --soft:#1c2620;
+  --accent:#6fbf95; --accent-ink:#0b1a12; --hi:#e3ad55; --deep:#0a120d; --deep-ink:#e3ebe5; color-scheme:dark}}
+:root[data-theme="dark"]{
+  --paper:#0f1511; --sheet:#161e19; --ink:#e3ebe5; --muted:#9aab9f; --line:#26332b; --soft:#1c2620;
+  --accent:#6fbf95; --accent-ink:#0b1a12; --hi:#e3ad55; --deep:#0a120d; --deep-ink:#e3ebe5; color-scheme:dark}
+*{box-sizing:border-box}
+body{background:var(--paper);color:var(--ink);font:16px/1.6 var(--f-body)}
+.band{padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px))}
+.in{max-width:1120px;margin:0 auto}
+a{color:var(--accent)}
+:focus-visible{outline:2px solid var(--accent);outline-offset:3px}
+.eyebrow{font-family:var(--f-mono);font-size:12px;letter-spacing:.12em;text-transform:uppercase;color:var(--muted)}
+h1,h2,h3{font-family:var(--f-display);font-weight:700;text-wrap:balance;margin:0;letter-spacing:-.01em}
+h1{font-size:clamp(40px,7vw,76px);line-height:1}
+h2{font-size:clamp(28px,4vw,42px);line-height:1.1}
+h3{font-size:20px;line-height:1.25}
+p{margin:0}
+.lead{font-size:clamp(17px,2vw,20px);color:var(--muted);max-width:52ch}
+.btn{display:inline-flex;align-items:center;gap:8px;padding:13px 22px;border-radius:999px;font-weight:700;text-decoration:none;border:1px solid var(--line);color:var(--ink);background:var(--sheet);cursor:pointer;font-size:16px}
+.btn.pri{background:var(--accent);color:var(--accent-ink);border-color:var(--accent)}
+.btn:hover{transform:translateY(-1px)}
+.row{display:flex;flex-wrap:wrap;gap:12px;align-items:center}
+/* nav */
+.top{padding-block:18px}
+.top .in{display:flex;justify-content:space-between;align-items:center;gap:12px}
+.logo{display:flex;align-items:center;gap:10px;font-family:var(--f-display);font-weight:700;font-size:20px;color:var(--ink);text-decoration:none}
+.logo i{width:30px;height:30px;border-radius:9px;background:var(--accent);display:grid;place-items:center;color:var(--accent-ink)}
+/* hero */
+.hero{padding-block:28px 64px}
+.hero .in{display:grid;grid-template-columns:minmax(0,1.15fr) minmax(0,.85fr);gap:48px;align-items:center}
+.hero-copy{display:flex;flex-direction:column;gap:22px;min-width:0}
+.hero h1 em{font-style:italic;color:var(--accent);font-weight:600}
+.facts{display:flex;flex-wrap:wrap;gap:8px 18px;font-size:14px;color:var(--muted)}
+.facts span::before{content:"";display:inline-block;width:7px;height:7px;border-radius:50%;background:var(--accent);margin-right:8px;vertical-align:1px}
+/* phone */
+.phone-wrap{display:flex;justify-content:center;min-width:0}
+.phone{width:min(300px,78vw);aspect-ratio:9/19;border-radius:44px;background:#0d120f;padding:12px;box-shadow:0 30px 70px rgba(10,30,20,.28),0 0 0 1px rgba(255,255,255,.06) inset;position:relative;max-width:100%}
+.screen{width:100%;height:100%;border-radius:34px;background:#eef1ec;color:#18221b;overflow:hidden;display:flex;flex-direction:column;position:relative}
+.notch{position:absolute;top:8px;left:50%;transform:translateX(-50%);width:90px;height:24px;border-radius:14px;background:#0d120f;z-index:2}
+.scr-body{padding:44px 16px 0;display:flex;flex-direction:column;gap:10px;flex:1;min-height:0}
+.scr-date{font:500 9px var(--f-mono);letter-spacing:.1em;text-transform:uppercase;color:#56655a}
+.scr-h{font:700 24px/1.05 var(--f-display)}
+.scr-q{background:#fbfcfa;border-left:3px solid #b5791f;border-radius:0 10px 10px 0;padding:10px 12px;font:500 13px/1.35 var(--f-display)}
+.scr-q small{display:block;margin-top:5px;font:400 8px var(--f-mono);color:#56655a}
+.scr-pos{background:#e2efe6;border:1px solid #bcd8c5;border-radius:10px;padding:8px 10px;font-size:11px;line-height:1.35}
+.scr-rings{display:grid;grid-template-columns:repeat(4,1fr);gap:4px;background:#fbfcfa;border-radius:12px;padding:10px 4px;box-shadow:0 4px 14px rgba(20,25,30,.07);text-align:center}
+.scr-rings b{display:block;font-size:8px;margin-top:2px}
+.scr-card{background:#fbfcfa;border-radius:12px;padding:10px 12px;box-shadow:0 4px 14px rgba(20,25,30,.07);font-size:10px;display:flex;flex-direction:column;gap:6px}
+.scr-card .t{font:700 12px var(--f-display)}
+.scr-btn{display:inline-block;background:#2f6b4f;color:#fff;border-radius:8px;padding:5px 9px;font-weight:700;font-size:9px}
+.scr-tab{display:grid;grid-template-columns:repeat(5,1fr);align-items:end;padding:6px 8px 14px;background:rgba(251,252,250,.95);border-top:1px solid #dfe6df;font-size:8px;color:#56655a;text-align:center}
+.scr-tab .p{justify-self:center;width:36px;height:36px;border-radius:50%;background:#2f6b4f;margin-top:-16px;display:grid;place-items:center;color:#fff}
+.scr-tab .on{color:#2f6b4f;font-weight:700}
+.scr-tab svg{display:block;margin:0 auto 2px}
+@media (prefers-reduced-motion:no-preference){ .phone{animation:float 7s ease-in-out infinite} @keyframes float{50%{transform:translateY(-8px)}} }
+/* sections */
+section.band{padding-block:64px}
+.sec-head{display:flex;flex-direction:column;gap:12px;margin-bottom:32px;max-width:720px}
+.feats{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,300px),1fr));gap:16px}
+.feat{background:var(--sheet);border-radius:var(--r);padding:22px;display:flex;flex-direction:column;gap:10px;box-shadow:0 1px 2px rgba(20,25,30,.04),0 8px 24px rgba(20,25,30,.06);min-width:0}
+.feat .ic{width:42px;height:42px;border-radius:12px;background:color-mix(in srgb,var(--accent) 14%,transparent);color:var(--accent);display:grid;place-items:center}
+.feat p{color:var(--muted);font-size:15px}
+/* install */
+.install{background:var(--deep);color:var(--deep-ink)}
+.install .eyebrow{color:color-mix(in srgb,var(--deep-ink) 65%,transparent)}
+.install .in{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1.1fr);gap:48px;align-items:start}
+.qrbox{background:#ffffff;color:#111;border-radius:var(--r);padding:20px;display:flex;flex-direction:column;align-items:center;gap:12px;width:min(280px,100%);text-align:center}
+.qrbox #qr img,.qrbox #qr canvas{display:block;width:200px;height:200px;max-width:100%}
+.qrbox small{font-size:13px;color:#444}
+.linkrow{display:flex;gap:8px;align-items:center;flex-wrap:wrap;font:13px var(--f-mono);word-break:break-all}
+.linkrow code{background:color-mix(in srgb,var(--deep-ink) 10%,transparent);padding:6px 10px;border-radius:8px}
+.copy{background:transparent;color:var(--deep-ink);border:1px solid color-mix(in srgb,var(--deep-ink) 40%,transparent);border-radius:999px;padding:6px 14px;cursor:pointer;font:600 13px var(--f-body)}
+.tabs{display:flex;gap:6px;margin-bottom:16px;flex-wrap:wrap}
+.tab{border:1px solid color-mix(in srgb,var(--deep-ink) 35%,transparent);background:transparent;color:var(--deep-ink);border-radius:999px;padding:7px 16px;cursor:pointer;font:600 14px var(--f-body)}
+.tab[aria-selected="true"]{background:var(--deep-ink);color:var(--deep)}
+.steps{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:14px;counter-reset:s}
+.steps li{display:grid;grid-template-columns:36px 1fr;gap:14px;align-items:start;counter-increment:s}
+.steps li::before{content:counter(s);width:36px;height:36px;border-radius:50%;display:grid;place-items:center;background:color-mix(in srgb,var(--deep-ink) 12%,transparent);font:600 15px var(--f-mono)}
+.steps b{display:block;font-size:16px}
+.steps span{color:color-mix(in srgb,var(--deep-ink) 75%,transparent);font-size:15px}
+/* privacy + faq */
+.two{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,420px),1fr));gap:24px}
+.priv{display:flex;flex-direction:column;gap:14px}
+.priv div{display:grid;grid-template-columns:28px 1fr;gap:12px}
+.priv svg{color:var(--accent)}
+details{background:var(--sheet);border-radius:12px;padding:14px 18px;box-shadow:0 1px 2px rgba(20,25,30,.04)}
+details+details{margin-top:10px}
+summary{cursor:pointer;font-weight:700}
+details p{margin-top:8px;color:var(--muted);font-size:15px}
+.cta{text-align:center;display:flex;flex-direction:column;align-items:center;gap:18px}
+footer.band{padding-block:28px;color:var(--muted);font-size:13px;border-top:1px solid var(--line)}
+@media (max-width:860px){
+  .hero .in,.install .in{grid-template-columns:1fr}
+  .phone-wrap{order:-1}
+  .hero{padding-top:8px}
+}
+</style>
+</head>
+<body>
+<header class="band top"><div class="in"><a class="logo" href="#inicio"><i><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M6 3h11a2 2 0 0 1 2 2v16H8a2 2 0 0 1-2-2z"/><path d="M6 17a2 2 0 0 1 2-2h11"/></svg></i>Bitácora PG</a><a class="btn" href="#instalar">Instalar</a></div></header>
+
+<section class="band hero" id="inicio"><div class="in">
+  <div class="hero-copy">
+    <div class="eyebrow">App personal · gratis · se instala en tu móvil</div>
+    <h1>Tu día entero, <em>en un solo sitio</em>.</h1>
+    <p class="lead">Entreno adaptado a tu objetivo, nutrición y recetas, salud, diario con fotos y notas de voz, finanzas y decisiones. Con una reflexión y un momento de calma cada día. Solo necesitas un correo para empezar.</p>
+    <div class="row"><a class="btn pri" id="openApp" href="./app/">Abrir la app</a><button class="btn" id="instBtn" type="button" hidden>Instalar en este dispositivo</button><a class="btn" href="#instalar">Cómo instalarla</a></div>
+    <div class="facts"><span>Datos privados por usuario</span><span>iPhone, Android y ordenador</span><span>Funciona sin conexión</span><span>Sin anuncios</span></div>
+  </div>
+  <div class="phone-wrap"><div class="phone" role="img" aria-label="Pantalla de inicio de la app con la reflexión del día y anillos de progreso"><div class="screen"><div class="notch"></div>
+    <div class="scr-body">
+      <div class="scr-date">sábado, 24 de octubre</div>
+      <div class="scr-h">Buenos días, Ana</div>
+      <div class="scr-q">Si algo depende de ti, ocúpate. Si no depende de ti, suéltalo.<small>Dicotomía del control</small></div>
+      <div class="scr-pos">Ayer entrenaste. La constancia es tu mejor suplemento.</div>
+      <div class="scr-rings" id="rings"></div>
+      <div class="scr-card"><span class="t">Meditación</span><span>Respiración cuadrada · 5 min</span><span><span class="scr-btn">Empezar</span></span></div>
+    </div>
+    <div class="scr-tab"><span class="on"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><circle cx="12" cy="12" r="4"/><path d="M12 3v2M12 19v2M5 12H3M21 12h-2"/></svg>Inicio</span><span><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><rect x="3" y="3" width="7" height="9" rx="1.5"/><rect x="14" y="3" width="7" height="5" rx="1.5"/><rect x="14" y="12" width="7" height="9" rx="1.5"/><rect x="3" y="16" width="7" height="5" rx="1.5"/></svg>Hoy</span><span class="p"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg></span><span><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><path d="M6.5 6.5v11M17.5 6.5v11M3 9.5v5M21 9.5v5M6.5 12h11"/></svg>Entreno</span><span><svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><circle cx="5" cy="12" r="1.6"/><circle cx="12" cy="12" r="1.6"/><circle cx="19" cy="12" r="1.6"/></svg>Más</span></div>
+  </div></div></div>
+</div></section>
+
+<section class="band" id="funciones"><div class="in">
+  <div class="sec-head"><div class="eyebrow">Qué incluye</div><h2>Todo lo que llevas en la cabeza, ordenado.</h2><p class="lead">Catorce módulos que se hablan entre sí: lo que comes, cómo entrenas, cómo duermes y en qué gastas alimentan los consejos del día.</p></div>
+  <div class="feats" id="feats"></div>
+</div></section>
+
+<section class="band install" id="instalar"><div class="in">
+  <div style="display:flex;flex-direction:column;gap:20px;min-width:0">
+    <div class="eyebrow">Instalación · 2 minutos</div>
+    <h2>Llévala en tu móvil.</h2>
+    <p style="color:color-mix(in srgb,var(--deep-ink) 78%,transparent)">Se instala desde el navegador, sin pasar por la tienda: tiene su icono, abre a pantalla completa y funciona sin conexión. Escanea el código con la cámara del móvil o abre el enlace.</p>
+    <div class="qrbox"><div id="qr" aria-label="Código QR con el enlace a la app"></div><small>Escanea con la cámara del móvil</small></div>
+    <div class="linkrow"><code id="appUrl">https://pgarciaaruvic.github.io/bitacora/</code><button class="copy" id="copyBtn" type="button">Copiar enlace</button></div>
+  </div>
+  <div style="min-width:0">
+    <div class="tabs" role="tablist"><button class="tab" role="tab" id="t-ios" aria-selected="true" data-p="ios">iPhone</button><button class="tab" role="tab" id="t-and" aria-selected="false" data-p="and">Android</button><button class="tab" role="tab" id="t-pc" aria-selected="false" data-p="pc">Ordenador</button></div>
+    <ol class="steps" id="steps"></ol>
+  </div>
+</div></section>
+
+<section class="band" id="privacidad"><div class="in two">
+  <div class="priv"><div class="eyebrow">Privacidad</div><h2>Tus datos son tuyos.</h2>
+    <div><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><rect x="5" y="10" width="14" height="10" rx="2"/><path d="M8 10V7a4 4 0 0 1 8 0v3"/></svg><p><b>Espacio privado por persona.</b> Cada usuario entra con su propia cuenta y sus datos se guardan separados: nadie más puede verlos, tampoco quien creó la app.</p></div>
+    <div><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><path d="M5 12a7 7 0 0 1 14 0M8.5 15a3.5 3.5 0 0 1 7 0"/><circle cx="12" cy="18" r="1"/></svg><p><b>Sin anuncios ni rastreo.</b> La app no vende ni comparte tus datos; solo se usan para que funcione.</p></div>
+    <div><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><path d="M12 4v11M7 10l5 5 5-5M5 20h14"/></svg><p><b>Exporta o borra cuando quieras.</b> Descarga una copia completa de tus datos o bórralos todos desde la propia app.</p></div>
+  </div>
+  <div><div class="eyebrow" style="margin-bottom:12px">Preguntas frecuentes</div>
+    <details><summary>¿Cuánto cuesta?</summary><p>Nada. Solo necesitas un correo electrónico o una cuenta de Google para crear tu usuario.</p></details>
+    <details><summary>¿Está en App Store o Google Play?</summary><p>No hace falta: es una app web instalable. En Android y en el ordenador aparece la opción «Instalar»; en iPhone se añade desde Safari a la pantalla de inicio. Tiene su icono y abre a pantalla completa.</p></details>
+    <details><summary>¿Necesito internet?</summary><p>Para crear la cuenta y para sincronizar. Sin conexión puedes seguir usándola: los cambios se guardan en el dispositivo y se suben solos al volver. Así tienes lo mismo en el móvil y en el ordenador.</p></details>
+    <details><summary>¿Sustituye a mi médico, nutricionista o entrenador?</summary><p>No. Los cálculos de calorías, los rangos de salud y las rutinas son orientación general. Ante dudas o valores fuera de rango, consulta a un profesional.</p></details>
+    <details><summary>¿Puedo borrar mi cuenta y mis datos?</summary><p>Sí. En la app, Automatizar → Datos: «Exportar copia» descarga todo y «Borrar todos mis datos» lo elimina.</p></details>
+  </div>
+</div></section>
+
+<section class="band"><div class="in cta"><h2>Empieza hoy. Mañana lo agradecerás.</h2><a class="btn pri" href="./app/">Abrir Bitácora PG</a></div></section>
+<footer class="band"><div class="in row" style="justify-content:space-between"><span>Bitácora PG · app personal de productividad, salud y bienestar</span><span>Datos alojados en Google Firebase</span></div></footer>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+<script>
+(() => {
+  const URL_APP = "https://pgarciaaruvic.github.io/bitacora/";
+  const I = {
+    inicio:'<circle cx="12" cy="12" r="4"/><path d="M12 3v2M12 19v2M5 12H3M21 12h-2M6.3 6.3 4.9 4.9M19.1 19.1l-1.4-1.4M6.3 17.7l-1.4 1.4M19.1 4.9l-1.4 1.4"/>',
+    entreno:'<path d="M6.5 6.5v11M17.5 6.5v11M3 9.5v5M21 9.5v5M6.5 12h11"/>',
+    nutricion:'<path d="M12 8c-2.5-2.5-8-1.5-8 4 0 4.5 3.5 9 6 9 .9 0 1.3-.5 2-.5s1.1.5 2 .5c2.5 0 6-4.5 6-9 0-5.5-5.5-6.5-8-4z"/><path d="M12 8c0-2 1-4 3.5-5"/>',
+    salud:'<path d="M3 12h4l2.5-5 3.5 10 2.5-5H21"/>',
+    diario:'<path d="M6 3h11a2 2 0 0 1 2 2v16H8a2 2 0 0 1-2-2z"/><path d="M6 17a2 2 0 0 1 2-2h11M10 7h5M10 10h3"/>',
+    economia:'<path d="M3 17l6-6 4 4 8-8"/><path d="M15 7h6v6"/>',
+    trabajo:'<rect x="3" y="7" width="18" height="13" rx="2"/><path d="M9 7V5a2 2 0 0 1 2-2h2a2 2 0 0 1 2 2v2M3 12h18"/>',
+    asistente:'<path d="M12 3l1.8 4.7L18.5 9.5l-4.7 1.8L12 16l-1.8-4.7L5.5 9.5l4.7-1.8z"/><path d="M19 15l.8 2.2L22 18l-2.2.8L19 21l-.8-2.2L16 18l2.2-.8z"/>',
+    estetica:'<path d="M12 3a9 9 0 1 0 0 18c1.4 0 2-.9 2-1.8 0-1.2-1-1.6-1-2.6 0-.9.8-1.6 1.8-1.6H17a4 4 0 0 0 4-4C21 6.6 17 3 12 3z"/><circle cx="7.5" cy="11" r="1"/><circle cx="10" cy="7" r="1"/><circle cx="14.5" cy="7" r="1"/>'
+  };
+  const ic = (k,s=22) => `<svg width="${s}" height="${s}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${I[k]}</svg>`;
+  const F = [
+    ["inicio","Inicio con calma","Cada mañana, una reflexión inspirada en los estoicos, un mensaje positivo, tus anillos del día y meditación guiada con recordatorios."],
+    ["entreno","Entreno a tu medida","Indica tu objetivo, sexo, edad, días y material, y la app genera o adapta tu rutina. Cada ejercicio tiene animación, técnica, descanso y tu progresión."],
+    ["nutricion","Nutrición y recetas","Calorías y macros calculados para ti según tu sexo, edad, medidas y objetivo. Registra comidas y elige recetas con sus macros ya calculados."],
+    ["salud","Salud","Peso, tensión, pulso en reposo, sueño, pasos, glucosa y ánimo, con gráficas y rangos de referencia que te avisan cuando algo se sale."],
+    ["diario","Diario con fotos y voz","Escribe, haz una foto o graba una nota de voz. Organiza con #etiquetas y búscalo todo después."],
+    ["economia","Finanzas e inversión","Presupuestos, gastos en dos toques, ahorro, cartera con importación del bróker, simulador de interés compuesto y fiscalidad española."],
+    ["trabajo","Trabajo y decisiones","Tareas priorizadas por urgencia, proyectos, automatizaciones y una matriz para tomar decisiones con criterio."],
+    ["estetica","Tu estética","Ocho temas, modo claro u oscuro, y ajuste fino de colores, tipografías, redondeo y densidad."],
+    ["asistente","Sin conexión","Se instala como una app y sigue funcionando sin internet: tus cambios se sincronizan solos al volver."]
+  ];
+  document.getElementById("feats").innerHTML = F.map(([k,t,d])=>`<article class="feat"><span class="ic">${ic(k)}</span><h3>${t}</h3><p>${d}</p></article>`).join("");
+  const ring = (p,c,l) => { const r=13, C=2*Math.PI*r; return `<div><svg width="38" height="38" viewBox="0 0 34 34" aria-hidden="true"><circle cx="17" cy="17" r="${r}" fill="none" stroke="#e3e9e2" stroke-width="4"/><circle cx="17" cy="17" r="${r}" fill="none" stroke="${c}" stroke-width="4" stroke-linecap="round" stroke-dasharray="${(C*p).toFixed(1)} ${C.toFixed(1)}" transform="rotate(-90 17 17)"/></svg><b>${l}</b></div>`; };
+  document.getElementById("rings").innerHTML = ring(.72,"#2f6b4f","Calorías")+ring(.64,"#b5791f","Proteína")+ring(.75,"#2d7a4c","Entreno")+ring(.5,"#3d6f8f","Calma");
+  const STEPS = {
+    ios:[["Abre el enlace en Safari","Escanea el código QR con la cámara o pulsa el enlace."],["Pulsa Compartir","El cuadrado con la flecha hacia arriba, en la barra de Safari."],["«Añadir a pantalla de inicio»","Pulsa Añadir: el icono de Bitácora aparece junto a tus apps."],["Ábrela y crea tu cuenta","Con tu correo y una contraseña, o con Google."],["Completa tu perfil","La primera vez, la app te guía: perfil, objetivo y estética."]],
+    and:[["Abre el enlace en Chrome","Escanea el código QR con la cámara o pulsa el enlace."],["Pulsa «Instalar»","En el aviso de Chrome o en el botón de esta página. Si no aparece: menú ⋮ → «Instalar aplicación»."],["Ábrela y crea tu cuenta","Con tu correo y una contraseña, o con Google."],["Completa tu perfil","La primera vez, la app te guía: perfil, objetivo y estética."]],
+    pc:[["Abre el enlace en Chrome o Edge","También funciona en Safari y Firefox, sin instalar."],["Pulsa el icono de instalar","Está a la derecha de la barra de direcciones, o en el botón «Instalar en este dispositivo»."],["Crea tu cuenta","Con tu correo y una contraseña, o con Google. Usa la misma en el móvil para tener tus datos en los dos."],["Atajo de teclado","Dentro de la app, Ctrl/⌘ + K abre el buscador de módulos y acciones."]]
+  };
+  const tabs = [...document.querySelectorAll(".tab")];
+  const show = p => { tabs.forEach(t=>t.setAttribute("aria-selected", String(t.dataset.p===p))); document.getElementById("steps").innerHTML = STEPS[p].map(([b,s])=>`<li><div><b>${b}</b><span>${s}</span></div></li>`).join(""); };
+  tabs.forEach(t=>t.addEventListener("click",()=>show(t.dataset.p)));
+  show(/android/i.test(navigator.userAgent) ? "and" : /iphone|ipad/i.test(navigator.userAgent) || !/windows|macintosh|linux/i.test(navigator.userAgent) ? "ios" : "pc");
+  try{ new QRCode(document.getElementById("qr"), {text:URL_APP, width:200, height:200, colorDark:"#111111", colorLight:"#ffffff", correctLevel:QRCode.CorrectLevel.M}); }catch(_){ document.getElementById("qr").textContent = URL_APP; }
+  let deferred=null; const ib=document.getElementById("instBtn");
+  window.addEventListener("beforeinstallprompt", e=>{ e.preventDefault(); deferred=e; ib.hidden=false; });
+  ib.addEventListener("click", async ()=>{ if(!deferred) return; deferred.prompt(); try{ await deferred.userChoice; }catch(_){} deferred=null; ib.hidden=true; });
+  window.addEventListener("appinstalled", ()=>{ ib.hidden=true; });
+  if("serviceWorker" in navigator) navigator.serviceWorker.register("./sw.js").catch(()=>{});
+  document.getElementById("copyBtn").addEventListener("click", async e => {
+    try{ await navigator.clipboard.writeText(URL_APP); e.target.textContent = "Copiado"; }
+    catch(_){ const r=document.createRange(); r.selectNodeContents(document.getElementById("appUrl")); const s=getSelection(); s.removeAllRanges(); s.addRange(r); e.target.textContent = "Selecciónalo y cópialo"; }
+    setTimeout(()=>e.target.textContent="Copiar enlace", 2500);
+  });
+})();
+</script>
+</body>
+</html>

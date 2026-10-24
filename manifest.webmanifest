@@ -1,0 +1,44 @@
+{
+ "name": "Bitácora PG",
+ "short_name": "Bitácora",
+ "description": "Tu app personal: entreno, nutrición, salud, diario, finanzas y calma.",
+ "lang": "es",
+ "start_url": "./app/",
+ "scope": "./",
+ "display": "standalone",
+ "orientation": "portrait",
+ "background_color": "#eef1ec",
+ "theme_color": "#2f6b4f",
+ "icons": [
+  {
+   "src": "icons/icon-192.png",
+   "sizes": "192x192",
+   "type": "image/png"
+  },
+  {
+   "src": "icons/icon-512.png",
+   "sizes": "512x512",
+   "type": "image/png"
+  },
+  {
+   "src": "icons/maskable-512.png",
+   "sizes": "512x512",
+   "type": "image/png",
+   "purpose": "maskable"
+  }
+ ],
+ "shortcuts": [
+  {
+   "name": "Añadir",
+   "url": "./app/#inicio"
+  },
+  {
+   "name": "Entreno",
+   "url": "./app/#entreno"
+  },
+  {
+   "name": "Diario",
+   "url": "./app/#diario"
+  }
+ ]
+}
