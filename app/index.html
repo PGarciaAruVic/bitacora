@@ -3,6 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="robots" content="noindex,nofollow">
 <title>Bitácora PG</title>
 <meta name="description" content="Tu app personal: entreno, nutrición, salud, diario, finanzas y calma.">
 <meta name="theme-color" content="#2f6b4f">
@@ -239,6 +240,8 @@ details.fold[open]>summary{margin-bottom:8px}
 body.noai .ai-sec, body.noai [data-act="brief"], body.noai [data-act="brief2"], body.noai [data-act="aiDec"], body.noai [data-act="noteIA"],
 body.noai [data-act="genReceta"], body.noai #foodQ, body.noai label[for="platoIn"], body.noai [data-act="aiSalud"], body.noai [data-act="askInv"],
 body.noai [data-v="asistente"], body.noai #recOut { display:none !important }
+body:not(.isadmin) .admin-only{display:none!important}
+.acl-row{display:flex;align-items:center;justify-content:space-between;gap:8px;padding:8px 0;border-bottom:1px solid var(--line);word-break:break-all}
 /* reset base (en el artefacto lo ponía el contenedor) */
 html,body{margin:0} :root{padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)} img{max-width:100%} [hidden]{display:none!important}
 .authov{position:fixed;inset:0;z-index:90;background:var(--paper);display:flex;align-items:center;justify-content:center;padding:max(24px,env(safe-area-inset-top,0px)) max(16px,env(safe-area-inset-right,0px)) max(24px,env(safe-area-inset-bottom,0px)) max(16px,env(safe-area-inset-left,0px));overflow-y:auto}
@@ -298,14 +301,14 @@ window.NOAI = true;
           </form>
           ${mode==="entrar"?'<button class="btn ghost" id="auReset" type="button">¿Has olvidado la contraseña?</button>':""}
           <div class="or">o</div><button class="btn" id="auGoogle" type="button">Continuar con Google</button></div>
-          <p class="note" style="margin:0">Al crear tu cuenta empiezas con la app vacía. Nadie más puede ver tus datos.</p></div>`);
+          <p class="note" style="margin:0">App privada: solo pueden entrar los correos autorizados por el administrador. Cada persona tiene su propio espacio y nadie más ve sus datos.</p></div>`);
         o.querySelectorAll("[data-m]").forEach(b => b.onclick = () => { mode = b.dataset.m; draw(); });
         o.querySelector("#authF").onsubmit = async e => { e.preventDefault();
           const mail = o.querySelector("#auMail").value.trim(), pass = o.querySelector("#auPass").value;
           if(!mail || pass.length < 6) return draw(!mail ? "Escribe tu correo." : "La contraseña debe tener al menos 6 caracteres.");
           const btn = o.querySelector('button[type="submit"]'); btn.disabled = true; btn.textContent = "Un momento…";
           try{
-            if(mode==="crear"){ const name = (o.querySelector("#auName").value||"").trim(); const r = await auth.createUserWithEmailAndPassword(mail, pass); if(name) await r.user.updateProfile({displayName:name}); }
+            if(mode==="crear"){ const name = (o.querySelector("#auName").value||"").trim(); const r = await auth.createUserWithEmailAndPassword(mail, pass); if(name) await r.user.updateProfile({displayName:name}); try{ await r.user.sendEmailVerification(); }catch(_){} }
             else await auth.signInWithEmailAndPassword(mail, pass);
           }catch(err){ draw(msg(err)); }
         };
@@ -313,9 +316,52 @@ window.NOAI = true;
         o.querySelector("#auGoogle").onclick = async () => { const prov = new firebase.auth.GoogleAuthProvider(); const standalone = matchMedia("(display-mode: standalone)").matches || navigator.standalone;
           try{ if(standalone || /iphone|ipad|android/i.test(navigator.userAgent)) await auth.signInWithRedirect(prov); else await auth.signInWithPopup(prov); }catch(err){ draw(msg(err)); } };
       };
-      let first = true;
+      const ADMINS = ["pgarcia@arumani.es", "pablogarciaalvaro.im@gmail.com"];
+      const mailOf = u => String(u.email || "").toLowerCase();
+      const box = (title, body, btns) => overlay(`<div class="authbox"><div class="authlogo">${LOGO}Bitácora PG</div><div class="card"><h2>${title}</h2><p class="note" style="font-size:14px">${body}</p><div class="err" role="alert" id="gErr"></div>${btns}<button class="btn ghost" id="gOut" type="button">Salir y entrar con otra cuenta</button></div></div>`);
+      const bindOut = o => { o.querySelector("#gOut").onclick = () => auth.signOut(); };
+      let first = true, gated = false;
+      const gate = async u => {
+        const usesPass = (u.providerData||[]).some(p => p.providerId === "password");
+        if(usesPass && !u.emailVerified){
+          const o = box("Verifica tu correo", `Te hemos enviado un enlace a <b>${esc(u.email)}</b>. Ábrelo (mira también en spam) y vuelve aquí.`, '<button class="btn pri" id="gOk" type="button">Ya lo he verificado</button><button class="btn" id="gRe" type="button">Reenviar correo</button>');
+          bindOut(o);
+          o.querySelector("#gOk").onclick = async () => { try{ await u.reload(); await u.getIdToken(true); }catch(_){} gate(auth.currentUser); };
+          o.querySelector("#gRe").onclick = async () => { try{ await u.sendEmailVerification(); o.querySelector("#gErr").textContent = "Correo reenviado."; }catch(e){ o.querySelector("#gErr").textContent = msg(e); } };
+          return;
+        }
+        const mail = mailOf(u), admin = ADMINS.includes(mail);
+        let ok = admin;
+        if(!ok){ try{ ok = (await fdb.collection("acl").doc(mail).get()).exists; }catch(_){ ok = false; } }
+        if(!ok){
+          const o = box("Sin acceso", `La cuenta <b>${esc(u.email||"")}</b> no está autorizada. Pide al administrador que añada tu correo y vuelve a intentarlo.`, '<button class="btn pri" id="gOk" type="button">Reintentar</button>');
+          bindOut(o); o.querySelector("#gOk").onclick = () => gate(u); return;
+        }
+        if(admin) document.body.classList.add("isadmin");
+        hide(); if(!gated){ gated = true; res({u, fdb}); }
+      };
+      window.bpgAcl = async () => {
+        if(!document.body.classList.contains("isadmin")) return;
+        const me = mailOf(auth.currentUser);
+        const render = async (err="") => {
+          let rows = [];
+          try{ rows = (await fdb.collection("acl").get()).docs.map(d => d.id).sort(); }catch(e){ err = err || msg(e); }
+          const o = overlay(`<div class="authbox"><div class="authlogo">${LOGO}Gestionar acceso</div><div class="card">
+            <p class="note" style="font-size:14px;margin:0">Solo estos correos pueden entrar. Administradores (siempre): ${ADMINS.map(esc).join(", ")}.</p>
+            <form id="aclF" style="display:flex;gap:8px"><input class="inp" id="aclIn" type="email" placeholder="correo@ejemplo.com" autocomplete="off" required><button class="btn pri" type="submit">Añadir</button></form>
+            <div class="err" role="alert">${esc(err)}</div>
+            <div>${rows.length ? rows.map(m => `<div class="acl-row"><span>${esc(m)}</span><button class="btn ghost" data-del="${esc(m)}" type="button">Quitar</button></div>`).join("") : '<p class="note">Aún no has autorizado a nadie más.</p>'}</div>
+            <button class="btn" id="aclX" type="button">Cerrar</button></div></div>`);
+          o.querySelector("#aclX").onclick = hide;
+          o.querySelector("#aclF").onsubmit = async e => { e.preventDefault(); const m = o.querySelector("#aclIn").value.trim().toLowerCase();
+            if(!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(m)) return render("Escribe un correo válido.");
+            try{ await fdb.collection("acl").doc(m).set({email:m, addedBy:me, addedAt:firebase.firestore.FieldValue.serverTimestamp()}); render(); }catch(e2){ render(msg(e2)); } };
+          o.querySelectorAll("[data-del]").forEach(b => b.onclick = async () => { try{ await fdb.collection("acl").doc(b.dataset.del).delete(); render(); }catch(e2){ render(msg(e2)); } });
+        };
+        render();
+      };
       auth.onAuthStateChanged(u => {
-        if(u){ hide(); if(first){ first = false; res({u, fdb}); } else location.reload(); }
+        if(u){ if(first){ first = false; gate(u); } else location.reload(); }
         else { if(!first) location.reload(); else draw(window.__authErr ? msg(window.__authErr) : ""); }
       });
     };
@@ -1756,7 +1802,7 @@ V.perfil = () => {
   <div class="grid2"><section class="sec"><div class="sec-h"><h2>Bienestar y avisos</h2><button class="btn sm" data-act="editBien">Editar</button></div><div class="tw"><table><tbody>
     ${row("Pantalla de inicio con reflexión al abrir",S.cfg.splash===false?"No":"Sí")}${row("Recordatorios de meditación",esc(S.cfg.recordMed||""))}${row("Mensajes positivos",S.cfg.positivos===false?"No":"Sí")}
   </tbody></table></div><span class="note">Los recordatorios avisan dentro de la app mientras está abierta (con sonido si el teléfono lo permite). Para avisos con la app cerrada, crea también una alarma en tu teléfono a esas horas.</span></section>
-  <section class="sec"><h2>Compartir la app</h2><ol style="margin:0;padding-left:20px"><li>Envía el enlace de la página de descarga por WhatsApp, correo o como quieras.</li><li>Cada persona crea su cuenta con su correo (o con Google) y empieza con la app vacía: sus datos son privados, ni tú ni nadie más los ve.</li><li>En el móvil la instalan desde la propia página: «Instalar app» en Android, o «Compartir → Añadir a pantalla de inicio» en iPhone.</li></ol><div class="row"><button class="btn" data-act="signOut">Cerrar sesión</button></div>
+  <section class="sec"><h2>Compartir la app</h2><p class="note" style="margin:0">La app es privada: solo pueden entrar los correos autorizados.</p><ol style="margin:0;padding-left:20px"><li class="admin-only">Pulsa «Gestionar acceso» y añade el correo de la persona.</li><li>Envíale el enlace. Entra con ese mismo correo (Google o contraseña; con contraseña tendrá que verificar el correo).</li><li>Cada persona tiene su propio espacio: nadie ve los datos de otro.</li></ol><div class="row"><button class="btn pri admin-only" data-act="acl">Gestionar acceso</button><button class="btn" data-act="signOut">Cerrar sesión</button></div>
     <div class="tw"><table><tbody><tr><td><b>Página de descarga</b><br><span class="note mono">${LANDING_URL}</span></td><td><button class="btn sm" data-act="copy" data-t="${LANDING_URL}">Copiar</button></td></tr><tr><td><b>Enlace directo a la app</b><br><span class="note mono">${APP_URL}</span></td><td><button class="btn sm" data-act="copy" data-t="${APP_URL}">Copiar</button></td></tr></tbody></table></div>
     <span class="note">Comparte la página de descarga: explica qué hace la app y cómo instalarla en iPhone y Android, con código QR. Tu cuenta: ${esc((me&&me.name)||"")}.</span></section></div>`;
 };
@@ -2247,6 +2293,7 @@ document.addEventListener("click", async e => {
     case "rutDia": S.rutDia=+el.dataset.v; render(); break;
     case "qadd": openQuick(); break;
     case "signOut": if(window.bpgSignOut) window.bpgSignOut(); break;
+    case "acl": if(window.bpgAcl) window.bpgAcl(); break;
     case "copy": copyTxt(el.dataset.t, el); break;
     case "wipe": if(!el.dataset.armed){ el.dataset.armed="1"; el.textContent="Pulsa otra vez: se borrará todo y no se puede deshacer"; break; } el.disabled=true; await wipeAll(); break;
     case "more": openMore(); break;

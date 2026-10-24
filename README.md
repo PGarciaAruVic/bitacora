@@ -1,6 +1,6 @@
 # Bitácora PG
 
-App personal instalable (PWA): entreno según objetivo, nutrición y recetas, salud, diario con fotos y notas de voz, finanzas e inversión, decisiones, meditación y temas visuales. Cada persona crea su cuenta con su correo (o Google) y sus datos son privados.
+App personal instalable (PWA): entreno según objetivo, nutrición y recetas, salud, diario con fotos y notas de voz, finanzas e inversión, decisiones, meditación y temas visuales. **Acceso privado:** solo entran los administradores y los correos autorizados; cada persona tiene su propio espacio.
 
 - **Página de descarga:** https://pgarciaaruvic.github.io/bitacora/
 - **App:** https://pgarciaaruvic.github.io/bitacora/app/
@@ -37,11 +37,13 @@ App personal instalable (PWA): entreno según objetivo, nutrición y recetas, sa
 1. En el repositorio: **Settings → Pages → Build and deployment → Source: Deploy from a branch → Branch: `main` / `(root)`** → Save.
 2. En 1–2 minutos estará en https://pgarciaaruvic.github.io/bitacora/
 
-## Compartir
-Envía el enlace de la página de descarga. Cada persona:
-- **iPhone:** lo abre en Safari → Compartir → «Añadir a pantalla de inicio».
-- **Android / ordenador:** botón «Instalar» (o menú ⋮ → «Instalar aplicación»).
-- Crea su cuenta con correo o Google y empieza con la app vacía.
+## Acceso privado
+- Administradores fijos (en `firestore.rules` y en la app): `pgarcia@arumani.es`, `pablogarciaalvaro.im@gmail.com`.
+- Para invitar a alguien: en la app, **Perfil → Gestionar acceso → Añadir** su correo. Para quitarle el acceso, «Quitar».
+- La persona entra con ese correo: con Google, o con contraseña (tendrá que verificar el correo).
+- Lo impone la base de datos (reglas de Firestore), no solo la app: una cuenta no autorizada no puede leer ni escribir nada.
+- Las páginas están marcadas para que los buscadores no las indexen (`noindex`, `robots.txt`).
+- Cambiar los administradores: edita la lista en `firestore.rules` (publícala en Firebase → Firestore → Reglas) y en `ADMINS` del script de la app.
 
 ## Límites del plan gratuito de Firebase (Spark)
 Firestore incluye cada día 50.000 lecturas, 20.000 escrituras y 20.000 borrados, y 1 GiB de datos guardados: suficiente para decenas de usuarios. Las fotos del diario se guardan comprimidas (≤ 220 KB) y las notas de voz hasta 8 MB, y cuentan dentro de ese GiB. Si algún día se superan los límites, Firebase deja de aceptar operaciones hasta el día siguiente; no cobra nada salvo que cambies a un plan de pago.

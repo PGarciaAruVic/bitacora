@@ -1,13 +1,23 @@
 rules_version = '2';
-// Bitácora PG: cada usuario solo puede leer y escribir su propio espacio.
 service cloud.firestore {
   match /databases/{database}/documents {
+    // Acceso privado: solo administradores y correos autorizados (colección acl), con correo verificado
+    function signedIn() { return request.auth != null && request.auth.token.email != null; }
+    function mail() { return request.auth.token.email.lower(); }
+    function verified() { return request.auth.token.email_verified == true; }
+    function isAdmin() { return signedIn() && verified() && mail() in ['pgarcia@arumani.es', 'pablogarciaalvaro.im@gmail.com']; }
+    function allowed() { return isAdmin() || (signedIn() && verified() && exists(/databases/$(database)/documents/acl/$(mail()))); }
+
+    // Lista de correos autorizados: cada uno puede comprobar el suyo; solo los administradores la gestionan
+    match /acl/{email} {
+      allow get: if signedIn() && verified() && (isAdmin() || mail() == email);
+      allow list, write: if isAdmin();
+    }
+    // Espacio privado de cada usuario
     match /data/users/{uid}/{document=**} {
-      allow read, write: if request.auth != null && request.auth.uid == uid;
+      allow read, write: if allowed() && request.auth.uid == uid;
     }
-    // Todo lo demás, cerrado.
-    match /{document=**} {
-      allow read, write: if false;
-    }
+    // Todo lo demás, cerrado
+    match /{document=**} { allow read, write: if false; }
   }
 }
