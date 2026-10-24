@@ -1,11 +1,10 @@
-/* Configuración de Firebase de Bitácora PG.
-   Sustituye los valores por los de tu proyecto: Firebase console → Configuración del proyecto → Tus apps → App web → Configuración del SDK (opción «Config»).
+/* Configuración de Firebase de Bitácora PG (proyecto bitacora-pg).
    Estos valores no son secretos: identifican el proyecto; la seguridad la dan las reglas de Firestore (firestore.rules). */
 window.FIREBASE_CONFIG = {
-  apiKey: "PEGA_AQUI_TU_API_KEY",
-  authDomain: "TU-PROYECTO.firebaseapp.com",
-  projectId: "TU-PROYECTO",
-  storageBucket: "TU-PROYECTO.appspot.com",
-  messagingSenderId: "000000000000",
-  appId: "1:000000000000:web:0000000000000000"
+  apiKey: "AIzaSyCpMw90ycs3nOqUAWi8HkMk5BIBdT9xLdw",
+  authDomain: "bitacora-pg.firebaseapp.com",
+  projectId: "bitacora-pg",
+  storageBucket: "bitacora-pg.firebasestorage.app",
+  messagingSenderId: "381116205829",
+  appId: "1:381116205829:web:1aee1c079ad694c4de056c"
 };
