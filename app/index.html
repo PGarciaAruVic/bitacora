@@ -289,7 +289,7 @@ window.NOAI = true;
       window.bpgSignOut = () => auth.signOut().then(() => location.reload());
       let mode = "entrar", srv = null;
       const checkSrv = async () => {
-        const put = t => { const d = document.getElementById("diag"); if(d) d.textContent = "Versión 7 · " + t; };
+        const put = t => { const d = document.getElementById("diag"); if(d) d.textContent = "Versión 8 · " + t; };
         if(srv) return put(srv);
         try{
           const r = await fetch("https://identitytoolkit.googleapis.com/v1/accounts:createAuthUri?key=" + encodeURIComponent(cfg.apiKey), {method:"POST", headers:{"Content-Type":"application/json"}, body: JSON.stringify({identifier:"comprobacion@example.com", continueUri: location.origin + "/"})});
@@ -312,7 +312,7 @@ window.NOAI = true;
           </form>
           ${mode==="entrar"?'<button class="btn ghost" id="auReset" type="button">¿Has olvidado la contraseña?</button>':""}
           <div class="or">o</div><button class="btn" id="auGoogle" type="button">Continuar con Google</button></div>
-          <p class="note" style="margin:0">App privada: al registrarte, el administrador recibe tu solicitud y te da acceso. Cada persona tiene su propio espacio y nadie más ve sus datos.</p><p class="note" id="diag" style="margin:0;font-size:12px">Versión 7 · comprobando conexión con el servidor…</p></div>`);
+          <p class="note" style="margin:0">App privada: al registrarte, el administrador recibe tu solicitud y te da acceso. Cada persona tiene su propio espacio y nadie más ve sus datos.</p><p class="note" id="diag" style="margin:0;font-size:12px">Versión 8 · comprobando conexión con el servidor…</p></div>`);
         checkSrv();
         o.querySelectorAll("[data-m]").forEach(b => b.onclick = () => { mode = b.dataset.m; draw(); });
         o.querySelector("#authF").onsubmit = async e => { e.preventDefault();
@@ -779,7 +779,7 @@ function nextSlot(){
 }
 function rutinaSection(){
   const {plan, weeks} = rutina();
-  if(!plan) return `<section class="sec"><h2>Rutina de fuerza</h2><div class="empty">Sin rutina todavía. Genera una según tu objetivo, material y días disponibles (o pide a Claude que importe la tuya). <button class="btn sm pri" data-act="planGen">Generar rutina</button></div></section>`;
+  if(!plan) return `<section class="sec"><h2>Rutina de fuerza</h2><div class="empty">Sin rutina todavía. Genera una según tu objetivo, material y días disponibles (o pide a Claude que importe la tuya). <button class="btn sm pri" data-act="planGen">Generar rutina</button> <label class="btn sm" for="impIn2">Importar mi rutina (archivo)</label><input type="file" id="impIn2" accept=".json,application/json,text/plain,application/octet-stream" hidden></div></section>`;
   const dia = S.rutDia || 1, pd = plan.plan.find(x=>x.dia===dia) || plan.plan[0], ns = nextSlot();
   const maxW = Math.max(12, ...weeks.map(w=>num(w.semana)));
   const cell = (w,d) => { const wk = weeks.find(x=>num(x.semana)===w); const dd = wk && (wk.dias||[]).find(x=>x.dia===d); const n = dd ? sum(dd.ejercicios||[],e=>(e.series||[]).length) : 0;
@@ -1540,7 +1540,7 @@ V.automatizar = () => {
       <tr><td>Presupuesto mensual total</td><td class=num>${E0.format(sum(Object.values(S.cfg.presupuestos||{})))}</td></tr>
     </tbody></table></div></section>
   <section class="sec"><h2>Datos</h2>
-    <div class="row"><button class="btn" data-act="export">Exportar copia (JSON)</button><select class="inp" id="csvCol" aria-label="Módulo a exportar">${Object.entries(CSV_NAMES).map(([k,l])=>`<option value="${k}">${l}</option>`).join("")}</select><button class="btn" data-act="exportCSV">Exportar CSV</button><label class="btn" for="impIn">Importar copia</label><input type="file" id="impIn" accept="application/json" hidden></div>
+    <div class="row"><button class="btn" data-act="export">Exportar copia (JSON)</button><select class="inp" id="csvCol" aria-label="Módulo a exportar">${Object.entries(CSV_NAMES).map(([k,l])=>`<option value="${k}">${l}</option>`).join("")}</select><button class="btn" data-act="exportCSV">Exportar CSV</button><label class="btn" for="impIn">Importar copia</label><input type="file" id="impIn" accept=".json,application/json,text/plain,application/octet-stream" hidden></div>
     ${ex?`<div class="row"><button class="btn danger" data-act="delEx">Borrar ${ex} datos de ejemplo</button><span class="note">Los registros marcados como ejemplo se crearon para enseñarte la herramienta.</span></div>`:""}
     <div class="row"><button class="btn danger" data-act="wipe">Borrar todos mis datos</button><span class="note">Exporta antes una copia si quieres conservarlos.</span></div>
     <p class="note" style="margin:0">Tus datos se guardan en tu espacio privado de la app, ligados a tu cuenta: nadie más puede leerlos. Se guardan cifrados en tránsito y funcionan también sin conexión.</p></section></div>`;
@@ -2459,11 +2459,12 @@ document.addEventListener("change", async e => {
   if(el.id==="impBroker" && IMP){ IMP.broker=el.value.trim(); drawImport(); return; }
   if(a==="impMap" && IMP){ IMP.map[el.dataset.k]=+el.value; drawImport(); return; }
   if(a==="sim"){ S.sim[el.dataset.k]=num(el.value); render(); return; }
-  if(el.id==="impIn" && el.files && el.files[0]){
-    try{ const data = JSON.parse(await el.files[0].text()); let n=0;
+  if((el.id==="impIn" || el.id==="impIn2") && el.files && el.files[0]){
+    try{ let data = JSON.parse((await el.files[0].text()).replace(/^\uFEFF/, "")); let n=0;
+      if(Array.isArray(data)) data = {rutina: data};
       const xs=[]; for(const k of Object.keys(COLS)) for(const x of (data[COLS[k]]||[])){ if(x&&x.id) xs.push([k,x]); } n = await pool(xs, ([k,x])=>put(k,x));
-      if(data.config) await saveCfg(data.config); toast(`Importados ${n} registros`);
-    }catch(err){ toast("El archivo no es una copia válida de la bitácora"); }
+      if(data.config) await saveCfg(data.config); toast(n ? `Importados ${n} registros` : "El archivo no contiene registros"); if(n) render();
+    }catch(err){ toast("No se pudo importar: " + (err && (err.code || err.message) || "archivo no válido")); }
     el.value=""; return;
   }
   if(a==="proyT"){ S.proyT=el.value; render(); }
