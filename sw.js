@@ -1,6 +1,6 @@
 /* Service worker de Bitácora PG: la app abre aunque no haya conexión.
    Los datos se sincronizan aparte con la caché sin conexión de Firestore. */
-const CACHE = "bitacora-v8";
+const CACHE = "bitacora-v9";
 const SHELL = ["./", "./index.html", "./app/", "./app/index.html", "./app/firebase-config.js", "./manifest.webmanifest", "./icons/icon-192.png", "./icons/icon-512.png", "./icons/favicon.svg"];
 self.addEventListener("install", e => { e.waitUntil(caches.open(CACHE).then(c => c.addAll(SHELL.map(u => new Request(u, {cache: "reload"})))).then(() => self.skipWaiting())); });
 self.addEventListener("activate", e => { e.waitUntil(caches.keys().then(ks => Promise.all(ks.filter(k => k !== CACHE).map(k => caches.delete(k)))).then(() => self.clients.claim())); });

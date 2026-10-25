@@ -289,7 +289,7 @@ window.NOAI = true;
       window.bpgSignOut = () => auth.signOut().then(() => location.reload());
       let mode = "entrar", srv = null;
       const checkSrv = async () => {
-        const put = t => { const d = document.getElementById("diag"); if(d) d.textContent = "Versión 8 · " + t; };
+        const put = t => { const d = document.getElementById("diag"); if(d) d.textContent = "Versión 9 · " + t; };
         if(srv) return put(srv);
         try{
           const r = await fetch("https://identitytoolkit.googleapis.com/v1/accounts:createAuthUri?key=" + encodeURIComponent(cfg.apiKey), {method:"POST", headers:{"Content-Type":"application/json"}, body: JSON.stringify({identifier:"comprobacion@example.com", continueUri: location.origin + "/"})});
@@ -312,7 +312,7 @@ window.NOAI = true;
           </form>
           ${mode==="entrar"?'<button class="btn ghost" id="auReset" type="button">¿Has olvidado la contraseña?</button>':""}
           <div class="or">o</div><button class="btn" id="auGoogle" type="button">Continuar con Google</button></div>
-          <p class="note" style="margin:0">App privada: al registrarte, el administrador recibe tu solicitud y te da acceso. Cada persona tiene su propio espacio y nadie más ve sus datos.</p><p class="note" id="diag" style="margin:0;font-size:12px">Versión 8 · comprobando conexión con el servidor…</p></div>`);
+          <p class="note" style="margin:0">App privada: al registrarte, el administrador recibe tu solicitud y te da acceso. Cada persona tiene su propio espacio y nadie más ve sus datos.</p><p class="note" id="diag" style="margin:0;font-size:12px">Versión 9 · comprobando conexión con el servidor…</p></div>`);
         checkSrv();
         o.querySelectorAll("[data-m]").forEach(b => b.onclick = () => { mode = b.dataset.m; draw(); });
         o.querySelector("#authF").onsubmit = async e => { e.preventDefault();
@@ -1954,10 +1954,7 @@ Object.assign(F, {
     onSave: v => saveCfg(v)}),
   frase: d => openForm({title: d.id?"Editar nota":"Nueva nota filosófica", data:d, fields:[{k:"texto",label:"Texto",type:"textarea",req:true,rows:3},{k:"autor",label:"Autor o fuente (opcional)"}],
     onSave: v => put("frases",{...d,...v,fecha:d.fecha||today()}), onDelete: d.id?()=>del("frases",d.id):null}),
-  comida: d => openForm({title: d.id?"Editar comida":"Añadir comida", data:{fecha:today(), momento:(()=>{const h=new Date().getHours(); return h<11?"desayuno":h<16?"comida":h<19?"merienda":"cena";})(), ...d}, fields:[
-    {k:"nombre",label:"Comida",req:true,wide:true},{k:"momento",label:"Momento",type:"select",options:["desayuno","comida","merienda","cena","snack"]},{k:"fecha",label:"Fecha",type:"date"},
-    {k:"kcal",label:"Calorías (kcal)",type:"number"},{k:"p",label:"Proteína (g)",type:"number",step:"0.1"},{k:"c",label:"Hidratos (g)",type:"number",step:"0.1"},{k:"g",label:"Grasa (g)",type:"number",step:"0.1"}],
-    onSave: v => put("comidas",{...d,...v}), onDelete: d.id?()=>del("comidas",d.id):null}),
+  comida: d => openFoodBuilder(d||{}),
   salud: d => openForm({title: d.id?"Editar registro de salud":"Registro de salud", data:{fecha:today(), ...d}, fields:[
     {k:"fecha",label:"Fecha",type:"date",req:true},{k:"peso",label:"Peso (kg)",type:"number",step:"0.1"},{k:"grasa",label:"% grasa corporal",type:"number",step:"0.1"},{k:"cintura",label:"Cintura (cm)",type:"number",step:"0.5"},
     {k:"taSis",label:"Tensión sistólica (mmHg)",type:"number"},{k:"taDia",label:"Tensión diastólica (mmHg)",type:"number"},{k:"fcReposo",label:"FC en reposo (lpm)",type:"number"},
@@ -1965,6 +1962,314 @@ Object.assign(F, {
     {k:"animo",label:"Ánimo (1–5)",type:"select",options:[["",""],1,2,3,4,5]},{k:"energia",label:"Energía (1–5)",type:"select",options:[["",""],1,2,3,4,5]},{k:"notas",label:"Notas",type:"textarea",rows:2}],
     onSave: async v => { v.animo = v.animo?num(v.animo):null; v.energia = v.energia?num(v.energia):null; await put("salud",{...d,...v}); if(v.peso && v.fecha===today()) await saveCfg({fis:{...fis(), peso:v.peso}}); }, onDelete: d.id?()=>del("salud",d.id):null})
 });
+
+/* ---------- alimentos: valores aproximados por 100 g (tablas de composición estándar; orientativos) ---------- */
+/* nombre | alias | kcal | proteína | hidratos | grasa | g por unidad | nombre de la unidad | ración por defecto (g) */
+const FOOD_TXT = `
+Pechuga de pollo a la plancha|pollo,pechuga,pechuga de pollo,pollo plancha,pollo asado|165|31|0|3.6|||150
+Pechuga de pollo cruda|pollo crudo|110|23|0|1.5|||150
+Muslo de pollo asado|muslo,contramuslo|209|26|0|11|90|muslo|
+Pechuga de pavo a la plancha|pavo|135|29|0|1.5|||150
+Fiambre de pavo|pavo fiambre,pechuga de pavo fiambre,pavo loncha|105|18|2|2.5|15|loncha|
+Filete de ternera a la plancha|ternera,filete,bistec,carne de ternera|190|30|0|7.5|120|filete|
+Carne picada cocinada|carne picada,picada|250|26|0|16|||120
+Hamburguesa de ternera|hamburguesa,burger|250|26|0|16|110|hamburguesa|
+Lomo de cerdo a la plancha|lomo,cerdo,cinta de lomo|200|29|0|9|100|filete|
+Solomillo de cerdo|solomillo|145|26|0|4.5|||150
+Costillas de cerdo|costillas|290|24|0|21|||150
+Jamón serrano|jamon,jamon iberico|240|31|0|13|15|loncha|
+Jamón cocido|jamon york,york,jamon de york|110|18|1.5|3.5|20|loncha|
+Chorizo|chorizo|455|24|2|38|10|rodaja|
+Salchichón|salchichon,fuet|420|26|1.5|34|10|rodaja|
+Bacon|beicon,panceta|470|33|1.5|36|15|loncha|
+Salchichas|salchicha,frankfurt|270|12|2|24|50|salchicha|
+Salmón|salmon|208|20|0|13|||150
+Merluza|merluza,pescado blanco|86|18|0|1.3|||150
+Bacalao|bacalao|82|18|0|0.7|||150
+Lubina|lubina|100|19|0|2.5|||150
+Dorada|dorada|100|20|0|2|||150
+Atún al natural|atun,atun natural,lata de atun|110|25|0|1|56|lata|
+Atún en aceite|atun aceite,atun en aceite de oliva|190|26|0|9|56|lata|
+Sardinas en aceite|sardinas|210|24|0|12|85|lata|
+Gambas|gambas,langostinos,camarones|90|20|0|1|||100
+Calamar|calamares,sepia,pota|92|16|3|1.4|||120
+Mejillones|mejillones|86|12|3.7|2.2|||150
+Huevo|huevos,huevo cocido,huevo duro|143|12.6|0.7|9.5|55|huevo|
+Huevo frito|huevos fritos|196|13.6|0.8|15|60|huevo|
+Clara de huevo|claras,clara|52|11|0.7|0.2|33|clara|
+Tortilla francesa|tortilla francesa|185|12|0.8|15|||120
+Tortilla de patatas|tortilla de patata,tortilla española|190|6.5|13|12.5|||150
+Leche entera|leche|64|3.2|4.7|3.6|250|vaso|
+Leche semidesnatada|leche semi,semidesnatada|46|3.2|4.8|1.6|250|vaso|
+Leche desnatada|leche desnatada|35|3.4|5|0.1|250|vaso|
+Bebida de avena|leche de avena|45|1|7|1.5|250|vaso|
+Bebida de soja|leche de soja|40|3.3|2.5|1.8|250|vaso|
+Bebida de almendra|leche de almendra,leche de almendras|15|0.5|0.3|1.1|250|vaso|
+Café solo|cafe,cafe solo,espresso|2|0.1|0|0|30|taza|
+Café con leche|cafe con leche,cortado|35|2|3|1.5|200|taza|
+Yogur natural|yogur,yogurt|61|3.5|4.7|3.3|125|yogur|
+Yogur desnatado|yogur desnatado,yogur 0|40|4|5.5|0.2|125|yogur|
+Yogur griego|griego|115|6|4|9|125|yogur|
+Skyr|yogur proteico,yogur de proteinas|62|11|4|0.2|150|yogur|
+Queso fresco batido 0%|queso batido,quark|46|8|3.5|0.2|||250
+Kéfir|kefir|60|3.5|4.5|3|||200
+Queso fresco|queso de burgos,burgos|175|12|3|13|||60
+Queso fresco light|queso fresco 0,burgos light|110|13|3|5|||60
+Queso curado|queso viejo,manchego|400|26|0.5|33|20|loncha|
+Queso semicurado|queso,queso semi|370|25|0.5|30|20|loncha|
+Queso en lonchas|queso lonchas,queso sandwich,queso tierno|330|22|1.5|26|20|loncha|
+Mozzarella|mozarella,queso mozzarella|255|19|2|19|||60
+Queso rallado|queso rallado,parmesano|400|30|2|30|||20
+Requesón|requeson|100|11|3.5|4.5|||100
+Queso de cabra|rulo de cabra|300|20|1|24|||40
+Queso crema|philadelphia,queso untar|250|6|4|24|20|cucharada|
+Mantequilla|mantequilla|740|0.7|0.6|82|10|cucharadita|
+Nata para cocinar|nata|190|2.5|4|18|||50
+Arroz blanco cocido|arroz,arroz cocido,arroz blanco|130|2.7|28|0.3|||150
+Arroz crudo|arroz en crudo|355|7|79|0.6|||70
+Arroz integral cocido|arroz integral|123|2.7|25.6|1|||150
+Pasta cocida|pasta,macarrones,espaguetis,spaghetti,tallarines,fideos|158|5.8|31|0.9|||200
+Pasta cruda|pasta en crudo,macarrones crudos|360|12.5|72|1.5|||80
+Pasta integral cocida|pasta integral|150|6|29|1.5|||200
+Pan blanco|pan,barra de pan,pan de barra|265|9|50|3.2|40|trozo|
+Pan integral|pan integral|250|10|43|3.5|40|trozo|
+Pan de molde|pan bimbo,pan de molde blanco|265|8|48|4|28|rebanada|
+Pan de molde integral|pan de molde integral|245|10|41|4|28|rebanada|
+Pan de centeno|centeno|260|8.5|48|3.3|40|rebanada|
+Tostadas|biscotes,pan tostado|410|11|74|6|8|tostada|
+Tortitas de arroz|tortita de arroz,tortitas de maiz|387|8|81|3|8|tortita|
+Tortilla de trigo|wrap,tortilla mexicana,fajita|300|8|50|7.5|60|tortilla|
+Copos de avena|avena,porridge,gachas|375|13.5|59|7|||40
+Cereales de desayuno|cereales,corn flakes|375|7|84|0.9|||40
+Muesli|muesli|370|10|64|6|||40
+Granola|granola|470|10|64|20|||40
+Cuscús cocido|cuscus,couscous|112|3.8|23|0.2|||150
+Quinoa cocida|quinoa,quinua|120|4.4|21|1.9|||150
+Patata cocida|patata,patatas,patata hervida|77|2|17|0.1|150|patata|
+Patata asada|patata al horno|93|2.5|21|0.1|150|patata|
+Patatas fritas caseras|patatas fritas,fritas|310|3.5|37|17|||150
+Patatas chips|chips,patatas de bolsa|536|6.5|53|34|||30
+Boniato asado|boniato,batata|90|2|21|0.2|200|boniato|
+Maíz dulce|maiz|85|2.9|16|1.2|||80
+Harina de trigo|harina|340|10|72|1|||30
+Lentejas cocidas|lentejas|116|9|20|0.4|||200
+Garbanzos cocidos|garbanzos|164|8.9|27|2.6|||200
+Alubias cocidas|alubias,judias blancas,frijoles|127|8.7|22.8|0.5|||200
+Guisantes|guisantes|81|5.4|14|0.4|||100
+Edamame|edamame|121|12|9|5|||100
+Tofu|tofu|144|15|3|8.7|||100
+Soja texturizada seca|soja texturizada|330|50|30|1|||50
+Hummus|humus|166|8|14|9.6|||50
+Lechuga|ensalada verde,lechuga iceberg,canonigos,rucula|15|1.4|2.9|0.2|||80
+Ensalada mixta|ensalada|20|1.2|3.5|0.2|||150
+Tomate|tomates|18|0.9|3.9|0.2|120|tomate|
+Pepino|pepino|15|0.7|3.6|0.1|200|pepino|
+Zanahoria|zanahorias|41|0.9|9.6|0.2|70|zanahoria|
+Cebolla|cebollas|40|1.1|9.3|0.1|110|cebolla|
+Pimiento rojo|pimiento|31|1|6|0.3|150|pimiento|
+Pimiento verde|pimiento verde|20|0.9|4.6|0.2|120|pimiento|
+Brócoli|brocoli|34|2.8|6.6|0.4|||150
+Coliflor|coliflor|25|1.9|5|0.3|||150
+Espinacas|espinaca|23|2.9|3.6|0.4|||100
+Calabacín|calabacin|17|1.2|3.1|0.3|200|calabacin|
+Berenjena|berenjena|25|1|6|0.2|250|berenjena|
+Judías verdes|judias verdes,vainas|31|1.8|7|0.2|||150
+Champiñones|champiñon,setas,champinones|22|3.1|3.3|0.3|||100
+Espárragos|esparragos,esparrago|20|2.2|3.9|0.1|||100
+Alcachofa|alcachofas|47|3.3|10.5|0.2|120|alcachofa|
+Calabaza|calabaza|26|1|6.5|0.1|||150
+Aguacate|aguacate,palta|160|2|8.5|14.7|140|aguacate|
+Ajo|ajo|149|6.4|33|0.5|4|diente|
+Gazpacho|gazpacho|45|0.8|4.5|2.8|250|vaso|
+Salmorejo|salmorejo|100|2|9|6|||200
+Manzana|manzanas|52|0.3|14|0.2|180|manzana|
+Plátano|platano,banana|89|1.1|23|0.3|120|plátano|
+Naranja|naranjas|47|0.9|12|0.1|180|naranja|
+Mandarina|mandarinas|53|0.8|13|0.3|80|mandarina|
+Pera|peras|57|0.4|15|0.1|170|pera|
+Fresas|fresa,fresones|32|0.7|7.7|0.3|||150
+Uvas|uva|69|0.7|18|0.2|||100
+Sandía|sandia|30|0.6|7.6|0.2|||250
+Melón|melon|34|0.8|8.2|0.2|||250
+Piña|pina|50|0.5|13|0.1|||150
+Kiwi|kiwis|61|1.1|15|0.5|75|kiwi|
+Melocotón|melocoton,nectarina|39|0.9|10|0.3|150|melocotón|
+Arándanos|arandanos|57|0.7|14|0.3|||80
+Mango|mango|60|0.8|15|0.4|||150
+Cerezas|cereza|63|1|16|0.2|||100
+Dátiles|datil,datiles|282|2.5|75|0.4|8|dátil|
+Pasas|uvas pasas|299|3|79|0.5|||30
+Zumo de naranja|zumo,zumo natural|45|0.7|10.4|0.2|200|vaso|
+Aceite de oliva|aceite,aove,aceite de oliva virgen|884|0|0|100|10|cucharada|
+Almendras|almendra|579|21|22|50|||30
+Nueces|nuez|654|15|14|65|||30
+Cacahuetes|cacahuete,mani|567|26|16|49|||30
+Crema de cacahuete|mantequilla de cacahuete|590|25|20|50|15|cucharada|
+Pistachos|pistacho|560|20|28|45|||30
+Anacardos|anacardo|553|18|30|44|||30
+Semillas de chía|chia|486|17|42|31|10|cucharada|
+Aceitunas|aceituna,olivas|145|1|4|15|4|aceituna|
+Mayonesa|mayonesa|680|1|0.6|75|15|cucharada|
+Tomate frito|tomate frito|80|1.5|11|3.5|||50
+Ketchup|ketchup|110|1.2|26|0.1|15|cucharada|
+Chocolate negro|chocolate negro,chocolate 70|600|8|46|43|10|onza|
+Chocolate con leche|chocolate|535|7.6|59|30|10|onza|
+Azúcar|azucar|400|0|100|0|5|cucharadita|
+Miel|miel|304|0.3|82|0|20|cucharada|
+Mermelada|mermelada,confitura|250|0.4|63|0.1|20|cucharada|
+Galletas María|galletas maria,galletas|440|7|73|13|6|galleta|
+Galletas digestive|digestive|480|7|63|21|15|galleta|
+Cruasán|croissant,cruasan|406|8|45|21|60|cruasán|
+Magdalena|magdalenas,muffin|440|6|52|23|30|magdalena|
+Helado|helado|207|3.5|24|11|||100
+Kebab|doner,durum,doner kebab|215|12|18|11|350|kebab|
+Pizza|pizza|266|11|33|10|120|porción|
+Croquetas|croqueta|250|7|22|14|30|croqueta|
+Paella|paella,arroz con pollo|160|7|21|5|||300
+Lentejas guisadas|lentejas con chorizo,potaje de lentejas|110|7|15|2.5|||300
+Cocido madrileño|cocido|150|11|10|7.5|||400
+Ensaladilla rusa|ensaladilla|170|3.5|9|13|||150
+Proteína whey|whey,proteina,batido de proteinas,proteina en polvo|380|78|7|5|30|cacito|
+Barrita de proteínas|barrita proteica,barrita|350|30|35|12|50|barrita|
+Cerveza|cerveza,lata de cerveza,botellin|43|0.5|3.6|0|330|lata|
+Caña de cerveza|caña,cana|43|0.5|3.6|0|200|caña|
+Cerveza sin alcohol|cerveza 0,cerveza sin|24|0.4|5|0|330|lata|
+Vino tinto|vino,vino blanco|85|0.1|2.6|0|150|copa|
+Refresco de cola|coca cola,cocacola,refresco|42|0|10.6|0|330|lata|
+Refresco zero|coca cola zero,cola zero,refresco light|0.3|0|0|0|330|lata|
+`;
+const FOODS = FOOD_TXT.trim().split("\n").map(l => { const [n,a,k,p,c,g,u,un,dp] = l.split("|"); return {n, a:(a||"").split(",").filter(Boolean), k:+k, p:+p, c:+c, g:+g, u:+u||0, un:un||"", dp:+dp||0}; });
+const fnorm = s => String(s||"").toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g,"").replace(/ñ/g,"n").replace(/[^a-z0-9%\s]/g," ").replace(/\s+/g," ").trim();
+const FSTOP = new Set(["de","del","la","el","los","las","con","al","a","en","un","una","unos","unas","y"]);
+const fwords = s => fnorm(s).split(" ").filter(w => w && !FSTOP.has(w)).map(w => w.length > 3 ? w.replace(/(es|s)$/,"") : w);
+FOODS.forEach(f => { f.keys = [f.n, ...f.a].map(x => fwords(x).join(" ")); });
+function foodMatch(q, max = 6){
+  const qw = fwords(q); if(!qw.length) return [];
+  const qs = qw.join(" ");
+  const scored = FOODS.map(f => {
+    let best = 0;
+    for(const key of f.keys){
+      let s = 0;
+      if(key === qs) s = 100;
+      else if(key.startsWith(qs)) s = 85 - Math.min(20, key.length - qs.length);
+      else { const kw = key.split(" "); const hit = qw.filter(w => kw.some(k => k.startsWith(w))).length;
+        if(hit === qw.length) s = 60 - (kw.length - hit) * 4; else if(hit) s = 25 * hit / qw.length; }
+      if(s > best) best = s;
+    }
+    return [best, f];
+  }).filter(x => x[0] > 20).sort((a,b) => b[0] - a[0]);
+  return scored.slice(0, max).map(x => x[1]);
+}
+const UNIT_G = {g:1, gr:1, grs:1, gramo:1, gramos:1, ml:1, mililitros:1, kg:1000, l:1000, litro:1000, cl:10, cucharada:15, cucharadas:15, cda:15, cdas:15, cucharadita:5, cucharaditas:5, cdta:5, vaso:250, vasos:250, taza:250, tazas:250, copa:150, copas:150, puñado:30, punado:30, puñados:30, punados:30, rebanada:30, rebanadas:30, loncha:20, lonchas:20, lata:80, latas:80, onza:10, onzas:10, cacito:30, cacitos:30, scoop:30, filete:120, filetes:120, plato:250, platos:250, racion:150, raciones:150, porcion:120, porciones:120, pieza:0, piezas:0, unidad:0, unidades:0, ud:0, uds:0, u:0};
+const NUM_W = {un:1, una:1, uno:1, medio:0.5, media:0.5, dos:2, tres:3, cuatro:4, cinco:5, seis:6, siete:7, ocho:8, nueve:9, diez:10};
+/* «2 huevos», «80 g de arroz», «media manzana», «1 cucharada de aceite», «arroz 150» */
+function parseFoodLine(seg){
+  let t = fnorm(seg).replace(/(\d),(\d)/g,"$1.$2"); if(!t) return null;
+  let qty = null, unit = null;
+  let m = t.match(/^(\d+(?:\.\d+)?)\s*([a-z]+)?\s*(.*)$/);
+  if(m){ qty = +m[1]; if(m[2] && m[2] in UNIT_G){ unit = m[2]; t = m[3]; } else t = ((m[2]||"") + " " + m[3]).trim(); }
+  else if((m = t.match(/^([a-z]+)\s+(.*)$/)) && m[1] in NUM_W){ qty = NUM_W[m[1]]; t = m[2]; const m2 = t.match(/^([a-z]+)\s+(.*)$/); if(m2 && m2[1] in UNIT_G){ unit = m2[1]; t = m2[2]; } }
+  else if((m = t.match(/^(.*?)\s+(\d+(?:\.\d+)?)\s*(g|gr|gramos|ml)?$/))){ t = m[1]; qty = +m[2]; unit = m[3] || "g"; }
+  t = t.replace(/^(de|del)\s+/,"");
+  const f = foodMatch(t, 1)[0]; if(!f) return {miss: seg.trim()};
+  let grams;
+  if(unit && UNIT_G[unit] > 0){
+    const named = ["rebanada","rebanadas","loncha","lonchas","lata","latas","onza","onzas","cacito","cacitos","filete","filetes","vaso","vasos","copa","copas","porcion","porciones","cucharada","cucharadas","cda","cdas","cucharadita","cucharaditas"];
+    grams = (named.includes(unit) && f.u && fnorm(f.un).startsWith(unit.replace(/s$/,"").slice(0,4))) ? qty * f.u : qty * UNIT_G[unit];
+  } else if(unit) grams = qty * (f.u || f.dp || 100);
+  else if(qty != null) grams = (qty < 20 && f.u) ? qty * f.u : (qty < 20 ? qty * (f.dp || 100) : qty);
+  else grams = f.u || f.dp || 100;
+  return {food: f, grams: Math.round(grams)};
+}
+const fitem = (f, grams, src = "tabla") => ({n: f.n, q: grams, k: f.k, p: f.p, c: f.c, g: f.g, u: f.u || 0, un: f.un || "", src});
+const fcalc = it => { const r = num(it.q) / 100; return {kcal: it.k * r, p: it.p * r, c: it.c * r, g: it.g * r}; };
+async function offSearch(q){
+  const url = "https://world.openfoodfacts.org/cgi/search.pl?search_simple=1&action=process&json=1&page_size=8&fields=product_name,brands,nutriments,serving_quantity&search_terms=" + encodeURIComponent(q);
+  const r = await fetch(url); const j = await r.json();
+  return (j.products || []).map(p => { const n = p.nutriments || {}; const k = num(n["energy-kcal_100g"]) || num(n["energy_100g"]) / 4.184;
+    return k ? {n: [p.product_name, p.brands && p.brands.split(",")[0]].filter(Boolean).join(" · ").slice(0, 70), k: Math.round(k), p: +num(n.proteins_100g).toFixed(1), c: +num(n.carbohydrates_100g).toFixed(1), g: +num(n.fat_100g).toFixed(1), u: num(p.serving_quantity) || 0, un: num(p.serving_quantity) ? "ración" : "", dp: 100} : null; }).filter(Boolean);
+}
+function openFoodBuilder(d = {}){
+  const root = $("#ovroot");
+  const h = new Date().getHours();
+  const st = {items: (d.items || []).map(x => ({...x})), momento: d.momento || (h<11?"desayuno":h<16?"comida":h<19?"merienda":"cena"), fecha: d.fecha || today(),
+    manual: !(d.items && d.items.length) && (d.id || d.kcal != null) ? {kcal: d.kcal, p: d.p, c: d.c, g: d.g} : null, nombre: d.nombre || "", nombreTocado: !!d.nombre, miss: [], off: null};
+  const tot = () => st.manual ? {kcal:num(st.manual.kcal), p:num(st.manual.p), c:num(st.manual.c), g:num(st.manual.g)} : st.items.reduce((a, it) => { const x = fcalc(it); return {kcal:a.kcal+x.kcal, p:a.p+x.p, c:a.c+x.c, g:a.g+x.g}; }, {kcal:0,p:0,c:0,g:0});
+  const autoName = () => st.items.map(it => it.n.split(" · ")[0]).join(", ").slice(0, 120);
+  const r1 = x => (Math.round(x * 10) / 10).toLocaleString("es-ES");
+  const draw = () => {
+    const t = tot();
+    root.innerHTML = `<div class="ov"><form class="modal" id="fbF" style="width:min(680px,100%)" novalidate autocomplete="off">
+      <div class="sec-h"><h2>${d.id ? "Editar comida" : "Añadir comida"}</h2><button type="button" class="btn ghost" data-fb="x">Cerrar</button></div>
+      <div class="row"><select class="inp" id="fbMom" aria-label="Momento">${["desayuno","comida","merienda","cena","snack"].map(m => `<option${m===st.momento?" selected":""}>${m}</option>`).join("")}</select><input class="inp" type="date" id="fbFecha" value="${esc(st.fecha)}" aria-label="Fecha"></div>
+      <label class="note" for="fbIn">Escribe lo que has comido y pulsa Añadir. Ej.: <i>2 huevos, 80 g de arroz, 1 plátano, 1 cucharada de aceite</i></label>
+      <div class="row"><input class="inp" id="fbIn" style="flex:1 1 240px" placeholder="Alimento y cantidad…" enterkeyhint="done"><button type="button" class="btn pri" data-fb="add">Añadir</button></div>
+      <div id="fbSug" class="chips" style="flex-wrap:wrap"></div>
+      ${st.miss.length ? `<div class="note">No encontrado en la tabla: ${st.miss.map(m => `<button type="button" class="btn sm" data-fb="off" data-q="${esc(m)}">Buscar «${esc(m)}» en Open Food Facts</button>`).join(" ")}</div>` : ""}
+      ${st.off ? `<div class="card" style="padding:10px"><div class="sec-h"><b>Open Food Facts · «${esc(st.off.q)}»</b><button type="button" class="btn sm ghost" data-fb="offx">Cerrar</button></div>${st.off.loading ? `<p class="note">Buscando…</p>` : st.off.err ? `<p class="note">${esc(st.off.err)}</p>` : st.off.res.length ? st.off.res.map((f, i) => `<button type="button" class="btn sm" style="margin:3px 3px 0 0" data-fb="offpick" data-i="${i}">${esc(f.n)} · ${f.k} kcal/100 g</button>`).join("") : `<p class="note">Sin resultados. Prueba con otro nombre o añádelo a mano.</p>`}</div>` : ""}
+      ${st.items.length ? `<div class="tw"><table><thead><tr><th>Alimento</th><th class=num>Cantidad</th><th class=num>kcal</th><th class=num>P</th><th class=num>H</th><th class=num>G</th><th></th></tr></thead><tbody>
+        ${st.items.map((it, i) => { const x = fcalc(it); return `<tr><td>${esc(it.n)}${it.src==="off"?' <span class="note">(OFF)</span>':""}</td>
+          <td class=num><input class="inp" type="number" inputmode="decimal" min="0" step="1" style="width:78px" data-fbq="${i}" value="${it.q}" aria-label="Gramos de ${esc(it.n)}"> g${it.u ? `<br><span class="note">${r1(it.q / it.u)} ${esc(it.un || "ud")}</span>` : ""}</td>
+          <td class=num>${Math.round(x.kcal)}</td><td class=num>${r1(x.p)}</td><td class=num>${r1(x.c)}</td><td class=num>${r1(x.g)}</td>
+          <td><button type="button" class="btn sm ghost" data-fb="rm" data-i="${i}" aria-label="Quitar">✕</button></td></tr>`; }).join("")}
+        </tbody>${st.manual ? "" : `<tfoot><tr><th>Total</th><th></th><th class=num>${Math.round(t.kcal)}</th><th class=num>${r1(t.p)}</th><th class=num>${r1(t.c)}</th><th class=num>${r1(t.g)}</th><th></th></tr></tfoot>`}</table></div>` : ""}
+      <div class="kpis" style="display:flex;gap:14px;flex-wrap:wrap"><b>${Math.round(t.kcal)} kcal</b><span>Proteína ${r1(t.p)} g</span><span>Hidratos ${r1(t.c)} g</span><span>Grasa ${r1(t.g)} g</span></div>
+      <details${st.manual ? " open" : ""}><summary class="note">Ajustar los totales a mano</summary>
+        <div class="row" style="margin-top:6px">${[["kcal","kcal"],["p","Proteína g"],["c","Hidratos g"],["g","Grasa g"]].map(([k,l]) => `<label class="note" style="display:flex;flex-direction:column;gap:2px">${l}<input class="inp" type="number" step="0.1" style="width:96px" data-fbm="${k}" value="${st.manual ? esc(st.manual[k] ?? "") : ""}" placeholder="${k==="kcal"?Math.round(t.kcal):r1(t[k])}"></label>`).join("")}</div>
+        ${st.manual ? `<button type="button" class="btn sm ghost" data-fb="auto" style="margin-top:6px">Volver al cálculo automático</button>` : ""}</details>
+      <label class="note" for="fbNom">Nombre</label><input class="inp" id="fbNom" value="${esc(st.nombreTocado ? st.nombre : autoName())}" placeholder="Se rellena solo">
+      <p class="note" style="margin:0">Valores aproximados por 100 g de tablas de composición estándar (Open Food Facts para productos de marca). Orientativos.</p>
+      <div class="row" style="justify-content:space-between">${d.id ? `<button type="button" class="btn danger" data-fb="del">Eliminar</button>` : "<span></span>"}<button type="submit" class="btn pri">Guardar</button></div>
+    </form></div>`;
+    bind();
+  };
+  const addText = txt => {
+    const segs = String(txt || "").split(/,|;|\+|\s+y\s+|\n/).map(s => s.trim()).filter(Boolean);
+    st.miss = [];
+    for(const s of segs){ const r = parseFoodLine(s); if(!r) continue; if(r.miss) st.miss.push(r.miss); else st.items.push(fitem(r.food, r.grams)); }
+    if(st.items.length) st.manual = null;
+  };
+  const sync = () => { const f = $("#fbF"); if(!f) return; st.momento = f.querySelector("#fbMom").value; st.fecha = f.querySelector("#fbFecha").value || today(); const nm = f.querySelector("#fbNom").value.trim(); if(nm && nm !== autoName()){ st.nombre = nm; st.nombreTocado = true; } };
+  const bind = () => {
+    const f = $("#fbF"), inp = f.querySelector("#fbIn"), sug = f.querySelector("#fbSug");
+    const close = () => root.innerHTML = "";
+    root.querySelector(".ov").addEventListener("mousedown", e => { if(e.target.classList.contains("ov")) close(); });
+    const showSug = () => { const last = inp.value.split(/,|;|\+|\s+y\s+/).pop(); const q = last.replace(/^[\d.,\s]+(g|gr|gramos|ml|unidades?|uds?)?\s*(de\s+)?/i, "");
+      const ms = q.trim().length >= 2 ? foodMatch(q, 6) : [];
+      sug.innerHTML = ms.map((m, i) => `<button type="button" class="chip" data-fb="pick" data-i="${i}">${esc(m.n)} <span class="note">${m.k} kcal/100 g</span></button>`).join("");
+      sug._ms = ms; sug._last = last; };
+    inp.addEventListener("input", showSug);
+    inp.addEventListener("keydown", e => { if(e.key === "Enter"){ e.preventDefault(); sync(); addText(inp.value); draw(); setTimeout(() => { const i = $("#fbIn"); i && i.focus(); }, 30); } });
+    f.querySelectorAll("[data-fbq]").forEach(el => el.addEventListener("change", () => { sync(); st.items[+el.dataset.fbq].q = Math.max(0, num(el.value)); draw(); }));
+    f.querySelectorAll("[data-fbm]").forEach(el => el.addEventListener("change", () => { sync(); st.manual = st.manual || {...(() => { const t = tot(); return {kcal:Math.round(t.kcal), p:+t.p.toFixed(1), c:+t.c.toFixed(1), g:+t.g.toFixed(1)}; })()}; st.manual[el.dataset.fbm] = el.value === "" ? 0 : num(el.value); draw(); }));
+    f.addEventListener("click", async e => {
+      const b = e.target.closest("[data-fb]"); if(!b) return; const a = b.dataset.fb, i = +b.dataset.i;
+      if(a === "x") return close();
+      sync();
+      if(a === "add"){ addText(inp.value); draw(); }
+      else if(a === "pick"){ const m = sug._ms[i]; const before = inp.value.slice(0, inp.value.length - sug._last.length); const r = parseFoodLine(sug._last.replace(/[a-zñáéíóúü][^\d]*$/i, "") + " " + m.n);
+        st.items.push(fitem(m, r && r.food === m ? r.grams : (m.u || m.dp || 100))); st.manual = null; draw(); const ni = $("#fbIn"); ni.value = before.replace(/[,;+\s]+$/, ""); ni.focus(); }
+      else if(a === "rm"){ st.items.splice(i, 1); draw(); }
+      else if(a === "auto"){ st.manual = null; draw(); }
+      else if(a === "off"){ const q = b.dataset.q; st.off = {q, loading:true}; draw();
+        try{ st.off = {q, res: await offSearch(q)}; }catch(err){ st.off = {q, err:"No se pudo consultar Open Food Facts (sin conexión o servicio no disponible)."}; } draw(); }
+      else if(a === "offpick"){ const p = st.off.res[i]; const r = parseFoodLine(st.off.q); const grams = (r && r.grams) || p.u || 100; st.items.push(fitem(p, grams, "off")); st.miss = st.miss.filter(m => m !== st.off.q); st.off = null; st.manual = null; draw(); }
+      else if(a === "offx"){ st.off = null; draw(); }
+      else if(a === "del"){ if(!b.dataset.armed){ b.dataset.armed = "1"; b.textContent = "Pulsa otra vez para eliminar"; return; } await del("comidas", d.id); close(); }
+    });
+    f.onsubmit = async e => { e.preventDefault(); sync();
+      if(inp.value.trim()){ addText(inp.value); }
+      const t = tot();
+      if(!st.items.length && !st.manual){ draw(); toast(st.miss.length ? "No he reconocido ese alimento: búscalo en Open Food Facts o ajusta los totales a mano" : "Añade al menos un alimento"); return; }
+      const nombre = (st.nombreTocado && st.nombre) || autoName() || "Comida";
+      const rec = {...d, nombre, momento: st.momento, fecha: st.fecha, kcal: Math.round(t.kcal), p: +t.p.toFixed(1), c: +t.c.toFixed(1), g: +t.g.toFixed(1), items: st.items.map(({n,q,k,p,c,g,u,un,src}) => ({n,q,k,p,c,g,u,un,src}))};
+      if(st.manual) rec.manual = true; else delete rec.manual;
+      await put("comidas", rec); close(); toast("Comida guardada");
+    };
+    setTimeout(() => inp.focus(), 30);
+  };
+  draw();
+}
 
 /* ---------- IA: comida, recetas, salud, diario ---------- */
 async function estimarComida(texto, blob){
