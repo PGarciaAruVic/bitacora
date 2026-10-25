@@ -289,7 +289,7 @@ window.NOAI = true;
       window.bpgSignOut = () => auth.signOut().then(() => location.reload());
       let mode = "entrar", srv = null;
       const checkSrv = async () => {
-        const put = t => { const d = document.getElementById("diag"); if(d) d.textContent = "Versión 9 · " + t; };
+        const put = t => { const d = document.getElementById("diag"); if(d) d.textContent = "Versión 10 · " + t; };
         if(srv) return put(srv);
         try{
           const r = await fetch("https://identitytoolkit.googleapis.com/v1/accounts:createAuthUri?key=" + encodeURIComponent(cfg.apiKey), {method:"POST", headers:{"Content-Type":"application/json"}, body: JSON.stringify({identifier:"comprobacion@example.com", continueUri: location.origin + "/"})});
@@ -312,7 +312,7 @@ window.NOAI = true;
           </form>
           ${mode==="entrar"?'<button class="btn ghost" id="auReset" type="button">¿Has olvidado la contraseña?</button>':""}
           <div class="or">o</div><button class="btn" id="auGoogle" type="button">Continuar con Google</button></div>
-          <p class="note" style="margin:0">App privada: al registrarte, el administrador recibe tu solicitud y te da acceso. Cada persona tiene su propio espacio y nadie más ve sus datos.</p><p class="note" id="diag" style="margin:0;font-size:12px">Versión 9 · comprobando conexión con el servidor…</p></div>`);
+          <p class="note" style="margin:0">App privada: al registrarte, el administrador recibe tu solicitud y te da acceso. Cada persona tiene su propio espacio y nadie más ve sus datos.</p><p class="note" id="diag" style="margin:0;font-size:12px">Versión 10 · comprobando conexión con el servidor…</p></div>`);
         checkSrv();
         o.querySelectorAll("[data-m]").forEach(b => b.onclick = () => { mode = b.dataset.m; draw(); });
         o.querySelector("#authF").onsubmit = async e => { e.preventDefault();
@@ -2183,11 +2183,48 @@ function parseFoodLine(seg){
 }
 const fitem = (f, grams, src = "tabla") => ({n: f.n, q: grams, k: f.k, p: f.p, c: f.c, g: f.g, u: f.u || 0, un: f.un || "", src});
 const fcalc = it => { const r = num(it.q) / 100; return {kcal: it.k * r, p: it.p * r, c: it.c * r, g: it.g * r}; };
+const offMap = p => { const n = p.nutriments || {}; const k = num(n["energy-kcal_100g"]) || num(n["energy_100g"]) / 4.184;
+  return k ? {n: [p.product_name || p.product_name_es, p.brands && p.brands.split(",")[0]].filter(Boolean).join(" · ").slice(0, 70) || "Producto", k: Math.round(k), p: +num(n.proteins_100g).toFixed(1), c: +num(n.carbohydrates_100g).toFixed(1), g: +num(n.fat_100g).toFixed(1), u: num(p.serving_quantity) || 0, un: num(p.serving_quantity) ? "ración" : "", dp: 100} : null; };
+const lsGet = k => { try{ return JSON.parse(localStorage.getItem(k) || "null"); }catch(_){ return null; } };
+const lsSet = (k, v) => { try{ localStorage.setItem(k, JSON.stringify(v)); }catch(_){} };
+async function offBarcode(code){
+  const own = lsGet("bpg_prod_" + code); if(own) return {...own, own: true};
+  const r = await fetch("https://world.openfoodfacts.org/api/v2/product/" + encodeURIComponent(code) + ".json?fields=product_name,product_name_es,brands,nutriments,serving_quantity");
+  if(r.status === 404) return {missing: true};
+  const j = await r.json(); if(j.status !== 1 || !j.product) return {missing: true};
+  const m = offMap(j.product); return m || {nodata: true, n: j.product.product_name || ""};
+}
+const loadScanner = () => window.__Html5QrcodeLibrary__ ? Promise.resolve() : new Promise((res, rej) => {
+  const add = (src, next) => { const s = document.createElement("script"); s.src = src; s.onload = res; s.onerror = next; document.head.appendChild(s); };
+  add("vendor/html5-qrcode.min.js", () => add("https://cdn.jsdelivr.net/npm/html5-qrcode@2.3.8/html5-qrcode.min.js", () => rej(new Error("No se pudo cargar el lector de códigos"))));
+});
+/* abre la cámara y devuelve el código EAN/UPC leído (o el escrito a mano); null si se cancela */
+function scanBarcode(){
+  return new Promise(resolve => {
+    const ov = document.createElement("div"); ov.className = "ov"; ov.style.zIndex = 95;
+    ov.innerHTML = `<div class="modal" style="width:min(460px,100%)"><div class="sec-h"><h2>Escanear producto</h2><button type="button" class="btn ghost" data-bc="x">Cerrar</button></div>
+      <div id="bcReader" style="width:100%;min-height:220px;background:#000;border-radius:10px;overflow:hidden"></div>
+      <p class="note" id="bcMsg" style="margin:0">Apunta al código de barras del envase. Pide permiso de cámara la primera vez.</p>
+      <div class="row"><input class="inp" id="bcCode" inputmode="numeric" pattern="[0-9]*" placeholder="…o escribe el número del código" style="flex:1 1 180px"><button type="button" class="btn" data-bc="ok">Buscar</button></div></div>`;
+    document.body.appendChild(ov);
+    let h = null, done = false;
+    const finish = async code => { if(done) return; done = true; try{ if(h){ await h.stop(); h.clear(); } }catch(_){} ov.remove(); resolve(code); };
+    ov.addEventListener("click", e => { const b = e.target.closest("[data-bc]"); if(!b) return; if(b.dataset.bc === "x") finish(null); else { const v = ov.querySelector("#bcCode").value.replace(/\D/g, ""); if(v.length >= 6) finish(v); } });
+    ov.querySelector("#bcCode").addEventListener("keydown", e => { if(e.key === "Enter"){ e.preventDefault(); const v = e.target.value.replace(/\D/g, ""); if(v.length >= 6) finish(v); } });
+    (async () => {
+      try{
+        await loadScanner(); if(done) return;
+        const L = window.__Html5QrcodeLibrary__, F = L.Html5QrcodeSupportedFormats;
+        h = new L.Html5Qrcode("bcReader", {formatsToSupport: [F.EAN_13, F.EAN_8, F.UPC_A, F.UPC_E], experimentalFeatures: {useBarCodeDetectorIfSupported: true}, verbose: false});
+        await h.start({facingMode: "environment"}, {fps: 12, qrbox: (w, hh) => ({width: Math.min(300, w * 0.85), height: Math.min(150, hh * 0.6)})}, text => { if(navigator.vibrate) navigator.vibrate(60); finish(String(text).replace(/\D/g, "")); }, () => {});
+      }catch(err){ const m = ov.querySelector("#bcMsg"); if(m) m.textContent = (/permission|notallowed/i.test(String(err && (err.name || err.message || err))) ? "Sin permiso para usar la cámara: actívalo en los ajustes del navegador, o escribe el número del código." : "No se pudo abrir la cámara: escribe el número que aparece bajo el código de barras."); }
+    })();
+  });
+}
 async function offSearch(q){
   const url = "https://world.openfoodfacts.org/cgi/search.pl?search_simple=1&action=process&json=1&page_size=8&fields=product_name,brands,nutriments,serving_quantity&search_terms=" + encodeURIComponent(q);
   const r = await fetch(url); const j = await r.json();
-  return (j.products || []).map(p => { const n = p.nutriments || {}; const k = num(n["energy-kcal_100g"]) || num(n["energy_100g"]) / 4.184;
-    return k ? {n: [p.product_name, p.brands && p.brands.split(",")[0]].filter(Boolean).join(" · ").slice(0, 70), k: Math.round(k), p: +num(n.proteins_100g).toFixed(1), c: +num(n.carbohydrates_100g).toFixed(1), g: +num(n.fat_100g).toFixed(1), u: num(p.serving_quantity) || 0, un: num(p.serving_quantity) ? "ración" : "", dp: 100} : null; }).filter(Boolean);
+  return (j.products || []).map(offMap).filter(Boolean);
 }
 function openFoodBuilder(d = {}){
   const root = $("#ovroot");
@@ -2203,12 +2240,16 @@ function openFoodBuilder(d = {}){
       <div class="sec-h"><h2>${d.id ? "Editar comida" : "Añadir comida"}</h2><button type="button" class="btn ghost" data-fb="x">Cerrar</button></div>
       <div class="row"><select class="inp" id="fbMom" aria-label="Momento">${["desayuno","comida","merienda","cena","snack"].map(m => `<option${m===st.momento?" selected":""}>${m}</option>`).join("")}</select><input class="inp" type="date" id="fbFecha" value="${esc(st.fecha)}" aria-label="Fecha"></div>
       <label class="note" for="fbIn">Escribe lo que has comido y pulsa Añadir. Ej.: <i>2 huevos, 80 g de arroz, 1 plátano, 1 cucharada de aceite</i></label>
-      <div class="row"><input class="inp" id="fbIn" style="flex:1 1 240px" placeholder="Alimento y cantidad…" enterkeyhint="done"><button type="button" class="btn pri" data-fb="add">Añadir</button></div>
+      <div class="row"><input class="inp" id="fbIn" style="flex:1 1 240px" placeholder="Alimento y cantidad…" enterkeyhint="done"><button type="button" class="btn pri" data-fb="add">Añadir</button><button type="button" class="btn" data-fb="scan">Escanear producto</button></div>
       <div id="fbSug" class="chips" style="flex-wrap:wrap"></div>
       ${st.miss.length ? `<div class="note">No encontrado en la tabla: ${st.miss.map(m => `<button type="button" class="btn sm" data-fb="off" data-q="${esc(m)}">Buscar «${esc(m)}» en Open Food Facts</button>`).join(" ")}</div>` : ""}
       ${st.off ? `<div class="card" style="padding:10px"><div class="sec-h"><b>Open Food Facts · «${esc(st.off.q)}»</b><button type="button" class="btn sm ghost" data-fb="offx">Cerrar</button></div>${st.off.loading ? `<p class="note">Buscando…</p>` : st.off.err ? `<p class="note">${esc(st.off.err)}</p>` : st.off.res.length ? st.off.res.map((f, i) => `<button type="button" class="btn sm" style="margin:3px 3px 0 0" data-fb="offpick" data-i="${i}">${esc(f.n)} · ${f.k} kcal/100 g</button>`).join("") : `<p class="note">Sin resultados. Prueba con otro nombre o añádelo a mano.</p>`}</div>` : ""}
+      ${st.label ? `<div class="card" style="padding:10px;display:flex;flex-direction:column;gap:8px"><b>Producto ${esc(st.label.code)}: copia los valores de la etiqueta (por 100 g)</b><span class="note">Solo hace falta una vez: la próxima vez que lo escanees se rellenará solo en este dispositivo.</span>
+        <input class="inp" data-lb="n" placeholder="Nombre del producto" value="${esc(st.label.n || "")}">
+        <div class="row">${[["k","kcal"],["p","Proteína g"],["c","Hidratos g"],["g","Grasa g"],["q","Cantidad que tomas (g)"]].map(([k,l]) => `<label class="note" style="display:flex;flex-direction:column;gap:2px">${l}<input class="inp" type="number" inputmode="decimal" step="0.1" style="width:110px" data-lb="${k}"${k==="q"?' value="100"':""}></label>`).join("")}</div>
+        <div class="row"><button type="button" class="btn pri" data-fb="lbok">Añadir producto</button><button type="button" class="btn ghost" data-fb="lbx">Cancelar</button></div></div>` : ""}
       ${st.items.length ? `<div class="tw"><table><thead><tr><th>Alimento</th><th class=num>Cantidad</th><th class=num>kcal</th><th class=num>P</th><th class=num>H</th><th class=num>G</th><th></th></tr></thead><tbody>
-        ${st.items.map((it, i) => { const x = fcalc(it); return `<tr><td>${esc(it.n)}${it.src==="off"?' <span class="note">(OFF)</span>':""}</td>
+        ${st.items.map((it, i) => { const x = fcalc(it); return `<tr><td>${esc(it.n)}${it.src==="off"?' <span class="note">(Open Food Facts)</span>':it.src==="etiqueta"?' <span class="note">(etiqueta)</span>':""}</td>
           <td class=num><input class="inp" type="number" inputmode="decimal" min="0" step="1" style="width:78px" data-fbq="${i}" value="${it.q}" aria-label="Gramos de ${esc(it.n)}"> g${it.u ? `<br><span class="note">${r1(it.q / it.u)} ${esc(it.un || "ud")}</span>` : ""}</td>
           <td class=num>${Math.round(x.kcal)}</td><td class=num>${r1(x.p)}</td><td class=num>${r1(x.c)}</td><td class=num>${r1(x.g)}</td>
           <td><button type="button" class="btn sm ghost" data-fb="rm" data-i="${i}" aria-label="Quitar">✕</button></td></tr>`; }).join("")}
@@ -2255,6 +2296,17 @@ function openFoodBuilder(d = {}){
         try{ st.off = {q, res: await offSearch(q)}; }catch(err){ st.off = {q, err:"No se pudo consultar Open Food Facts (sin conexión o servicio no disponible)."}; } draw(); }
       else if(a === "offpick"){ const p = st.off.res[i]; const r = parseFoodLine(st.off.q); const grams = (r && r.grams) || p.u || 100; st.items.push(fitem(p, grams, "off")); st.miss = st.miss.filter(m => m !== st.off.q); st.off = null; st.manual = null; draw(); }
       else if(a === "offx"){ st.off = null; draw(); }
+      else if(a === "scan"){ const code = await scanBarcode(); if(!code) return; st.off = {q: "código " + code, loading: true}; st.label = null; draw();
+        try{ const p = await offBarcode(code);
+          if(p.missing || p.nodata){ st.off = null; st.label = {code, n: p.n || ""}; toast(p.missing ? "Producto no encontrado: copia los valores de la etiqueta" : "Este producto no tiene valores nutricionales publicados: cópialos de la etiqueta"); }
+          else { st.items.push(fitem(p, p.u || 100, p.own ? "etiqueta" : "off")); st.off = null; st.manual = null; toast(`${p.n}: ${p.k} kcal/100 g`); }
+        }catch(err){ st.off = null; st.label = {code}; toast("Sin conexión con Open Food Facts: copia los valores de la etiqueta"); }
+        draw(); }
+      else if(a === "lbx"){ st.label = null; draw(); }
+      else if(a === "lbok"){ const v = k => f.querySelector(`[data-lb="${k}"]`).value; const k = num(v("k"));
+        if(!k){ toast("Escribe al menos las kcal por 100 g"); return; }
+        const prod = {n: v("n").trim() || ("Producto " + st.label.code), k, p: num(v("p")), c: num(v("c")), g: num(v("g")), u: 0, un: "", dp: 100};
+        lsSet("bpg_prod_" + st.label.code, prod); st.items.push(fitem(prod, num(v("q")) || 100, "etiqueta")); st.label = null; st.manual = null; draw(); }
       else if(a === "del"){ if(!b.dataset.armed){ b.dataset.armed = "1"; b.textContent = "Pulsa otra vez para eliminar"; return; } await del("comidas", d.id); close(); }
     });
     f.onsubmit = async e => { e.preventDefault(); sync();
